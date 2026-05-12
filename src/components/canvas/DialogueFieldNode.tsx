@@ -81,14 +81,14 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
       <div className="tape" style={{ top: -10, left: 18, width: 64, height: 18 }} />
 
       {/* Handles */}
-      <AltClickHandle onAltClick={() => removeAt('target', 'top')} type="target" position={Position.Top}
-        className={`handle-analog ${hasConn('target', 'top') ? 'connected' : ''}`} />
-      <AltClickHandle onAltClick={() => removeAt('target', 'left-target')} type="target" position={Position.Left}
-        className={`handle-analog ${hasConn('target', 'left-target') ? 'connected' : ''}`} id="left-target" />
-      <AltClickHandle onAltClick={() => removeAt('source', 'bottom')} type="source" position={Position.Bottom}
-        className={`handle-analog ${hasConn('source', 'bottom') ? 'connected' : ''}`} />
-      <AltClickHandle onAltClick={() => removeAt('source', 'right-source')} type="source" position={Position.Right}
-        className={`handle-analog ${hasConn('source', 'right-source') ? 'connected' : ''}`} id="right-source" />
+      <AltClickHandle onAltClick={() => removeAt('target', 'top')} type="target" position={Position.Top} id="top"
+        className={`handle-analog handle-target ${hasConn('target', 'top') ? 'connected' : ''}`} />
+      <AltClickHandle onAltClick={() => removeAt('target', 'left-target')} type="target" position={Position.Left} id="left-target"
+        className={`handle-analog handle-target ${hasConn('target', 'left-target') ? 'connected' : ''}`} />
+      <AltClickHandle onAltClick={() => removeAt('source', 'bottom')} type="source" position={Position.Bottom} id="bottom"
+        className={`handle-analog handle-source ${hasConn('source', 'bottom') ? 'connected' : ''}`} />
+      <AltClickHandle onAltClick={() => removeAt('source', 'right-source')} type="source" position={Position.Right} id="right-source"
+        className={`handle-analog handle-source ${hasConn('source', 'right-source') ? 'connected' : ''}`} />
 
       {/* Header */}
       <div

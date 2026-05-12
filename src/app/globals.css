@@ -169,10 +169,16 @@ textarea.analog::placeholder, input.analog::placeholder {
 .handle-analog {
   width: 14px !important;
   height: 14px !important;
-  background: var(--paper-3) !important;
   border: 1.5px solid var(--ink) !important;
   border-radius: 999px !important;
   box-shadow: 0 2px 0 rgba(40,30,15,0.25);
+  transition: background 0.15s, border-color 0.15s;
+}
+.handle-target {
+  background: var(--paper-3) !important;
+}
+.handle-source {
+  background: var(--ink-mute) !important;
 }
 .handle-analog.connected {
   background: var(--ink) !important;
