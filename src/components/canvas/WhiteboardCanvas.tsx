@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -14,8 +14,6 @@ import {
   OnConnectEnd,
   useReactFlow,
   ReactFlowProvider,
-  applyNodeChanges,
-  applyEdgeChanges,
   OnNodesChange,
   OnEdgesChange,
   NodeChange,
@@ -65,6 +63,8 @@ function WhiteboardCanvasInner({
   const { screenToFlowPosition } = useReactFlow()
   const connectingFrom = useRef<string | null>(null)
 
+  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({})
+
   const onRemoveConnectionsAt = useCallback(
     (fieldId: string, handleType: 'source' | 'target', handleId: string) => {
       const toRemove = connections.filter(c => {
@@ -82,11 +82,11 @@ function WhiteboardCanvasInner({
     [connections, onRemoveConnection]
   )
 
-  const buildNodes = useCallback((): Node[] => {
+  const nodes = useMemo<Node[]>(() => {
     return fields.map(field => ({
       id: field.id,
       type: 'dialogueField',
-      position: field.position,
+      position: dragPositions[field.id] || field.position,
       selected: field.id === selectedFieldId,
       data: {
         field,
@@ -100,13 +100,7 @@ function WhiteboardCanvasInner({
         onRemoveConnectionsAt,
       } satisfies DialogueFieldNodeData,
     }))
-  }, [fields, characters, connections, selectedFieldId, onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt])
-
-  const [nodes, setNodes] = useState<Node[]>(buildNodes)
-
-  useEffect(() => {
-    setNodes(buildNodes())
-  }, [buildNodes])
+  }, [fields, characters, connections, selectedFieldId, dragPositions, onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt])
 
   const edges: Edge[] = useMemo(
     () =>
@@ -126,9 +120,10 @@ function WhiteboardCanvasInner({
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      setNodes(nds => applyNodeChanges(changes, nds))
-
       for (const change of changes) {
+        if (change.type === 'position' && change.position) {
+          setDragPositions(prev => ({ ...prev, [change.id]: change.position! }))
+        }
         if (change.type === 'select' && change.selected) {
           onSelectField(change.id)
         }
@@ -140,6 +135,11 @@ function WhiteboardCanvasInner({
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       onUpdateField(node.id, { position: node.position })
+      setDragPositions(prev => {
+        const next = { ...prev }
+        delete next[node.id]
+        return next
+      })
     },
     [onUpdateField]
   )
