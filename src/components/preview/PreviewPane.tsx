@@ -27,19 +27,29 @@ function exportAsCSV(items: PreviewItem[]) {
   URL.revokeObjectURL(url)
 }
 
-function TreePrefix({ prefixes }: { prefixes: string[] }) {
-  if (prefixes.length === 0) return null
+function renderBranchPrefix(isLastStack: boolean[]): string {
+  if (isLastStack.length === 0) return ''
+  return isLastStack.map((isLast, i) => {
+    if (i < isLastStack.length - 1) {
+      return isLast ? '  ' : '│ '
+    }
+    return isLast ? '└─' : '├─'
+  }).join('')
+}
+
+function renderContinuationPrefix(isLastStack: boolean[]): string {
+  if (isLastStack.length === 0) return ''
+  return isLastStack.map(isLast => isLast ? '  ' : '│ ').join('')
+}
+
+function TreePrefix({ text }: { text: string }) {
+  if (!text) return null
   return (
     <span className="mono" style={{
-      color: 'var(--ink-faint)', fontSize: 13, lineHeight: 1,
+      color: 'var(--ink-faint)', fontSize: 13, lineHeight: '20px',
       whiteSpace: 'pre', userSelect: 'none', flexShrink: 0,
     }}>
-      {prefixes.map((p, i) => {
-        if (i < prefixes.length - 1) {
-          return p === '│' ? '│ ' : '  '
-        }
-        return p === '├' ? '├─' : '└─'
-      }).join('')}
+      {text}
     </span>
   )
 }
@@ -91,48 +101,34 @@ export function PreviewPane({ items, groups, selectedFieldId }: PreviewPaneProps
 
       {/* Dialogue list with tree */}
       <div className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 16px', position: 'relative', zIndex: 2 }}>
-        {groups.map((group, gi) => (
-          <div key={group.field.id} style={{ marginTop: gi > 0 ? 14 : 0 }}>
-            {/* Field header with tree prefix */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              marginBottom: 8,
-            }}>
-              <TreePrefix prefixes={group.prefixes} />
-              <span className="hand hand-underline" style={{
-                fontSize: 15, fontWeight: 600, color: 'var(--ink-soft)',
-                textAlign: 'center',
+        {groups.map((group, gi) => {
+          const branchPrefix = renderBranchPrefix(group.isLastStack)
+          const contPrefix = renderContinuationPrefix(group.isLastStack)
+
+          return (
+            <div key={group.field.id} style={{ marginTop: gi > 0 ? 14 : 0 }}>
+              {/* Field header with tree prefix */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                marginBottom: 8,
               }}>
-                {group.field.label}
-              </span>
-              <div style={{ flex: 1, height: 1, borderBottom: '1px dashed var(--rule)' }} />
-            </div>
+                <TreePrefix text={branchPrefix} />
+                <span className="hand hand-underline" style={{
+                  fontSize: 15, fontWeight: 600, color: 'var(--ink-soft)',
+                  textAlign: 'center',
+                }}>
+                  {group.field.label}
+                </span>
+                <div style={{ flex: 1, height: 1, borderBottom: '1px dashed var(--rule)' }} />
+              </div>
 
-            {/* Blocks in this field */}
-            {group.items.map((item, bi) => {
-              const continuationPrefix = group.prefixes.length > 0
-                ? group.prefixes.map((p, i) => {
-                    if (i < group.prefixes.length - 1) {
-                      return p === '│' ? '│ ' : '  '
-                    }
-                    return p === '├' ? '│ ' : '  '
-                  }).join('')
-                : ''
-
-              return (
+              {/* Blocks in this field */}
+              {group.items.map((item, bi) => (
                 <div key={item.block.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10,
                   marginTop: bi > 0 ? 8 : 0,
                 }}>
-                  {continuationPrefix && (
-                    <span className="mono" style={{
-                      color: 'var(--ink-faint)', fontSize: 13, lineHeight: 1,
-                      whiteSpace: 'pre', userSelect: 'none', flexShrink: 0,
-                      marginTop: 8,
-                    }}>
-                      {continuationPrefix}
-                    </span>
-                  )}
+                  <TreePrefix text={contPrefix} />
                   <FaceIcon character={item.character} size={32} emotion={item.block.emotion} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="mono" style={{ fontSize: 10, color: 'var(--ink-mute)', marginBottom: 3 }}>
@@ -151,10 +147,10 @@ export function PreviewPane({ items, groups, selectedFieldId }: PreviewPaneProps
                     </div>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        ))}
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import { Connection, DialogueField } from '@/types'
 export interface TreeNode {
   field: DialogueField
   depth: number
-  prefixes: string[]
+  isLastStack: boolean[]
 }
 
 export function getConnectedChain(
@@ -32,24 +32,19 @@ export function getConnectedTree(
   const visited = new Set<string>()
   const result: TreeNode[] = []
 
-  function traverse(fieldId: string, depth: number, prefixes: string[]) {
+  function traverse(fieldId: string, depth: number, isLastStack: boolean[]) {
     if (visited.has(fieldId)) return
     visited.add(fieldId)
 
     const field = fieldMap.get(fieldId)
-    if (field) result.push({ field, depth, prefixes: [...prefixes] })
+    if (field) result.push({ field, depth, isLastStack: [...isLastStack] })
 
     const edges = outgoing.get(fieldId) || []
     edges.sort((a, b) => a.order - b.order)
 
     for (let i = 0; i < edges.length; i++) {
       const isLast = i === edges.length - 1
-      const childPrefixes = depth === 0
-        ? [isLast ? '└' : '├']
-        : [...prefixes.slice(0, -1),
-           prefixes[prefixes.length - 1] === '├' || prefixes[prefixes.length - 1] === '│' ? '│' : ' ',
-           isLast ? '└' : '├']
-      traverse(edges[i].targetFieldId, depth + 1, childPrefixes)
+      traverse(edges[i].targetFieldId, depth + 1, [...isLastStack, isLast])
     }
   }
 

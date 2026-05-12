@@ -23,12 +23,7 @@ export function LocalInput({ value, onChange, onBlur, onEnter, className, autoFo
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const stop = (e: KeyboardEvent) => {
-      e.stopPropagation()
-      if (composingRef.current && (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete')) {
-        return
-      }
-    }
+    const stop = (e: Event) => { e.stopPropagation() }
     el.addEventListener('keydown', stop, true)
     el.addEventListener('keyup', stop, true)
     el.addEventListener('keypress', stop, true)
@@ -40,10 +35,10 @@ export function LocalInput({ value, onChange, onBlur, onEnter, className, autoFo
   }, [])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    if (composingRef.current) return
-    setLocalValue(val)
-    onChange(val)
+    setLocalValue(e.target.value)
+    if (!composingRef.current) {
+      onChange(e.target.value)
+    }
   }, [onChange])
 
   const handleCompositionStart = useCallback(() => {
@@ -52,7 +47,9 @@ export function LocalInput({ value, onChange, onBlur, onEnter, className, autoFo
 
   const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
     composingRef.current = false
-    onChange((e.target as HTMLInputElement).value)
+    const val = (e.target as HTMLInputElement).value
+    setLocalValue(val)
+    onChange(val)
   }, [onChange])
 
   const handleBlur = useCallback(() => {

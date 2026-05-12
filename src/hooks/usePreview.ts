@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { DialogueField, DialogueBlock, Connection, Character } from '@/types'
-import { getConnectedTree, TreeNode } from '@/lib/graph'
+import { getConnectedTree } from '@/lib/graph'
 
 export interface PreviewItem {
   block: DialogueBlock
@@ -13,7 +13,7 @@ export interface PreviewItem {
 export interface PreviewFieldGroup {
   field: DialogueField
   depth: number
-  prefixes: string[]
+  isLastStack: boolean[]
   items: { block: DialogueBlock; character: Character | undefined }[]
 }
 
@@ -43,7 +43,7 @@ export function usePreview(
     return tree.map(n => ({
       field: n.field,
       depth: n.depth,
-      prefixes: n.prefixes,
+      isLastStack: n.isLastStack,
       items: n.field.blocks.map(block => ({
         block,
         character: charMap.get(block.characterId),

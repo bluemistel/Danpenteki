@@ -9,13 +9,18 @@ interface BlockTextareaProps {
   rows?: number
   className?: string
   style?: React.CSSProperties
+  onCtrlEnter?: () => void
+  onAltUp?: () => void
+  onAltDown?: () => void
 }
 
-export function BlockTextarea({ value, onChange, placeholder, rows = 2, className, style }: BlockTextareaProps) {
+export function BlockTextarea({ value, onChange, placeholder, rows = 2, className, style, onCtrlEnter, onAltUp, onAltDown }: BlockTextareaProps) {
   const [localValue, setLocalValue] = useState(value)
   const composingRef = useRef(false)
   const focusedRef = useRef(false)
   const ref = useRef<HTMLTextAreaElement>(null)
+  const callbackRefs = useRef({ onCtrlEnter, onAltUp, onAltDown })
+  callbackRefs.current = { onCtrlEnter, onAltUp, onAltDown }
 
   useEffect(() => {
     if (!focusedRef.current) {
@@ -27,10 +32,27 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
     const el = ref.current
     if (!el) return
     const stop = (e: KeyboardEvent) => {
-      e.stopPropagation()
-      if (composingRef.current && (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete')) {
-        return
+      if (e.type === 'keydown') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.stopPropagation()
+          e.preventDefault()
+          callbackRefs.current.onCtrlEnter?.()
+          return
+        }
+        if (e.altKey && e.key === 'ArrowUp') {
+          e.stopPropagation()
+          e.preventDefault()
+          callbackRefs.current.onAltUp?.()
+          return
+        }
+        if (e.altKey && e.key === 'ArrowDown') {
+          e.stopPropagation()
+          e.preventDefault()
+          callbackRefs.current.onAltDown?.()
+          return
+        }
       }
+      e.stopPropagation()
     }
     el.addEventListener('keydown', stop, true)
     el.addEventListener('keyup', stop, true)
@@ -43,10 +65,10 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
   }, [])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value
-    if (composingRef.current) return
-    setLocalValue(val)
-    onChange(val)
+    setLocalValue(e.target.value)
+    if (!composingRef.current) {
+      onChange(e.target.value)
+    }
   }, [onChange])
 
   const handleCompositionStart = useCallback(() => {
@@ -55,7 +77,9 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
 
   const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLTextAreaElement>) => {
     composingRef.current = false
-    onChange((e.target as HTMLTextAreaElement).value)
+    const val = (e.target as HTMLTextAreaElement).value
+    setLocalValue(val)
+    onChange(val)
   }, [onChange])
 
   const handleFocus = useCallback(() => {

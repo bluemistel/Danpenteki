@@ -215,6 +215,10 @@ textarea.analog::placeholder, input.analog::placeholder {
   background: linear-gradient(to bottom, transparent, var(--rule) 12%, var(--rule) 88%, transparent);
 }
 
+/* Block delete button - show on row hover */
+.block-delete-btn { opacity: 0; transition: opacity 0.15s; }
+.block-row:hover .block-delete-btn { opacity: 1; }
+
 /* React Flow overrides */
 .react-flow__background { opacity: 0.65; }
 .react-flow__controls { border-radius: 12px !important; overflow: hidden; border: 1px solid #d8cdb6 !important; box-shadow: var(--shadow-soft) !important; }

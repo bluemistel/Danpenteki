@@ -34,8 +34,8 @@ export default function Home() {
         redo()
       }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
   }, [undo, redo])
 
   const { previewItems, previewGroups } = usePreview(

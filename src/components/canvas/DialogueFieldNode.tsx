@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useCallback, type MouseEvent as ReactMouseEvent } from 'react'
+import { useState, useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { DialogueField, Character, DialogueBlock, Connection } from '@/types'
 import { FaceIcon } from '../characters/FaceIcon'
@@ -43,8 +43,10 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
   } = data as unknown as DialogueFieldNodeData
 
   const [editingLabel, setEditingLabel] = useState(false)
+  const focusedBlockIdRef = useRef<string | null>(null)
   const charMap = new Map((characters as Character[]).map(c => [c.id, c]))
   const f = field as DialogueField
+  const chars = characters as Character[]
   const conns = connections as Connection[]
 
   const hasConn = (ht: 'source' | 'target', hid: string) =>
@@ -56,6 +58,19 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
 
   const removeAt = (ht: 'source' | 'target', hid: string) =>
     (onRemoveConnectionsAt as any)(f.id, ht, hid)
+
+  const switchCharacter = useCallback((blockId: string, direction: number) => {
+    const block = f.blocks.find(b => b.id === blockId)
+    if (!block || chars.length === 0) return
+    const idx = chars.findIndex(c => c.id === block.characterId)
+    let newIdx: number
+    if (idx < 0) {
+      newIdx = 0
+    } else {
+      newIdx = (idx + direction + chars.length) % chars.length
+    }
+    ;(onUpdateBlock as any)(f.id, blockId, { characterId: chars[newIdx].id })
+  }, [f, chars, onUpdateBlock])
 
   return (
     <div
@@ -119,18 +134,23 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
       {!f.collapsed && (
         <div className="nodrag nowheel nopan">
           {f.blocks.length > 0 && (
-            <div className="hide-scrollbar" style={{ padding: '8px 10px', maxHeight: 300, overflowY: 'auto' }}>
+            <div style={{ padding: '8px 10px' }}>
               {f.blocks.map((block, i) => (
-                <div key={block.id} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 6,
-                  paddingTop: i > 0 ? 8 : 0,
-                  borderTop: i > 0 ? '1px dashed var(--rule-soft)' : 'none',
-                  marginTop: i > 0 ? 8 : 0,
-                }}>
+                <div
+                  key={block.id}
+                  className="block-row"
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 6,
+                    paddingTop: i > 0 ? 8 : 0,
+                    borderTop: i > 0 ? '1px dashed var(--rule-soft)' : 'none',
+                    marginTop: i > 0 ? 8 : 0,
+                    position: 'relative',
+                  }}
+                >
                   <FaceIcon character={charMap.get(block.characterId)} size={32} emotion={block.emotion} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <CharacterPicker
-                      characters={characters as Character[]}
+                      characters={chars}
                       selectedId={block.characterId}
                       onChange={id => (onUpdateBlock as any)(f.id, block.id, { characterId: id })}
                     />
@@ -141,17 +161,18 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
                       rows={2}
                       className="analog"
                       style={{ fontSize: 14 }}
+                      onCtrlEnter={() => (onAddBlock as any)(f.id)}
+                      onAltUp={() => switchCharacter(block.id, -1)}
+                      onAltDown={() => switchCharacter(block.id, 1)}
                     />
                   </div>
                   <button
+                    className="block-delete-btn"
                     onClick={() => (onRemoveBlock as any)(f.id, block.id)}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       color: 'var(--ink-faint)', padding: 2, lineHeight: 0,
-                      opacity: 0, transition: 'opacity 0.15s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
                   >
                     <Trash2 size={12} />
                   </button>
@@ -187,4 +208,4 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
   )
 }
 
-export const DialogueFieldNode = memo(DialogueFieldNodeComponent)
+export const DialogueFieldNode = DialogueFieldNodeComponent
