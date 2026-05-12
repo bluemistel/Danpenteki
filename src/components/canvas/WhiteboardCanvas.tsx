@@ -81,7 +81,7 @@ function WhiteboardCanvasInner({
     [connections, onRemoveConnection]
   )
 
-  // Stable callback refs to avoid node data staleness
+  // Stable callback refs — never change reference, always call latest function
   const cbRef = useRef({
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
     onRemoveField, onRemoveConnectionsAt,
@@ -102,22 +102,40 @@ function WhiteboardCanvasInner({
 
   const [nodes, setNodes] = useState<Node[]>([])
 
-  // Rebuild nodes when data changes, preserving RF-managed positions
+  // Sync data to nodes: preserve ALL React Flow internal properties,
+  // only update `data` and `selected`.
   useEffect(() => {
     setNodes(prevNodes => {
-      const posMap = new Map(prevNodes.map(n => [n.id, n.position]))
-      return fields.map(field => ({
-        id: field.id,
-        type: 'dialogueField' as const,
-        position: posMap.get(field.id) || field.position,
-        selected: field.id === selectedFieldId,
-        data: {
-          field,
-          characters,
-          connections,
-          ...stableCallbacks,
-        } satisfies DialogueFieldNodeData,
-      }))
+      const prevMap = new Map(prevNodes.map(n => [n.id, n]))
+      return fields.map(field => {
+        const existing = prevMap.get(field.id)
+        if (existing) {
+          // Spread existing node to keep RF internals (measured, width, height, position, etc.)
+          return {
+            ...existing,
+            selected: field.id === selectedFieldId,
+            data: {
+              field,
+              characters,
+              connections,
+              ...stableCallbacks,
+            } satisfies DialogueFieldNodeData,
+          }
+        }
+        // New node
+        return {
+          id: field.id,
+          type: 'dialogueField' as const,
+          position: field.position,
+          selected: field.id === selectedFieldId,
+          data: {
+            field,
+            characters,
+            connections,
+            ...stableCallbacks,
+          } satisfies DialogueFieldNodeData,
+        }
+      })
     })
   }, [fields, characters, connections, selectedFieldId, stableCallbacks])
 
