@@ -14,6 +14,7 @@ import {
   OnConnectEnd,
   useReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   OnNodesChange,
   OnEdgesChange,
   NodeChange,
@@ -34,7 +35,7 @@ interface WhiteboardCanvasProps {
   selectedFieldId: string | null
   onSelectField: (id: string | null) => void
   onUpdateField: (id: string, updates: Partial<DialogueField>) => void
-  onAddField: (position: { x: number; y: number }) => void
+  onAddField: (position: { x: number; y: number }) => DialogueField
   onRemoveField: (id: string) => void
   onAddBlock: (fieldId: string, characterId?: string) => void
   onUpdateBlock: (fieldId: string, blockId: string, updates: Partial<DialogueBlock>) => void
@@ -42,6 +43,36 @@ interface WhiteboardCanvasProps {
   onAddConnection: (conn: Omit<Connection, 'id' | 'order'>) => void
   onRemoveConnection: (id: string) => void
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void
+}
+
+function buildNodesFromFields(
+  fields: DialogueField[],
+  characters: Character[],
+  connections: Connection[],
+  selectedFieldId: string | null,
+  callbacks: {
+    onUpdateField: WhiteboardCanvasProps['onUpdateField']
+    onAddBlock: WhiteboardCanvasProps['onAddBlock']
+    onUpdateBlock: WhiteboardCanvasProps['onUpdateBlock']
+    onRemoveBlock: WhiteboardCanvasProps['onRemoveBlock']
+    onRemoveField: WhiteboardCanvasProps['onRemoveField']
+    onRemoveConnectionsAt: (fieldId: string, handleType: 'source' | 'target', handleId: string) => void
+  },
+  prevNodes: Node[],
+): Node[] {
+  const posMap = new Map(prevNodes.map(n => [n.id, n.position]))
+  return fields.map(field => ({
+    id: field.id,
+    type: 'dialogueField',
+    position: posMap.get(field.id) || field.position,
+    selected: field.id === selectedFieldId,
+    data: {
+      field,
+      characters,
+      connections,
+      ...callbacks,
+    } satisfies DialogueFieldNodeData,
+  }))
 }
 
 function WhiteboardCanvasInner({
@@ -61,9 +92,7 @@ function WhiteboardCanvasInner({
   onViewportChange,
 }: WhiteboardCanvasProps) {
   const { screenToFlowPosition } = useReactFlow()
-  const connectingFrom = useRef<string | null>(null)
-
-  const [dragPositions, setDragPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const connectingFrom = useRef<{ nodeId: string; handleId: string | null } | null>(null)
 
   const onRemoveConnectionsAt = useCallback(
     (fieldId: string, handleType: 'source' | 'target', handleId: string) => {
@@ -82,25 +111,36 @@ function WhiteboardCanvasInner({
     [connections, onRemoveConnection]
   )
 
-  const nodes = useMemo<Node[]>(() => {
-    return fields.map(field => ({
-      id: field.id,
-      type: 'dialogueField',
-      position: dragPositions[field.id] || field.position,
-      selected: field.id === selectedFieldId,
-      data: {
-        field,
-        characters,
-        connections,
-        onUpdateField,
-        onAddBlock,
-        onUpdateBlock,
-        onRemoveBlock,
-        onRemoveField,
-        onRemoveConnectionsAt,
-      } satisfies DialogueFieldNodeData,
-    }))
-  }, [fields, characters, connections, selectedFieldId, dragPositions, onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt])
+  const [nodes, setNodes] = useState<Node[]>([])
+
+  // Synchronous data sync: update nodes during render (not in useEffect)
+  // React detects setState during render and re-renders immediately
+  // WITHOUT committing the stale intermediate state to the DOM.
+  const prevSyncRef = useRef<{
+    fields: DialogueField[]
+    characters: Character[]
+    connections: Connection[]
+    selectedFieldId: string | null
+    onRemoveConnectionsAt: typeof onRemoveConnectionsAt
+  }>({ fields: [], characters: [], connections: [], selectedFieldId: null, onRemoveConnectionsAt })
+
+  const prev = prevSyncRef.current
+  if (
+    prev.fields !== fields ||
+    prev.characters !== characters ||
+    prev.connections !== connections ||
+    prev.selectedFieldId !== selectedFieldId ||
+    prev.onRemoveConnectionsAt !== onRemoveConnectionsAt
+  ) {
+    prevSyncRef.current = { fields, characters, connections, selectedFieldId, onRemoveConnectionsAt }
+    setNodes(prevNodes =>
+      buildNodesFromFields(
+        fields, characters, connections, selectedFieldId,
+        { onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt },
+        prevNodes,
+      )
+    )
+  }
 
   const edges: Edge[] = useMemo(
     () =>
@@ -120,10 +160,9 @@ function WhiteboardCanvasInner({
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes: NodeChange[]) => {
+      setNodes(nds => applyNodeChanges(changes, nds))
+
       for (const change of changes) {
-        if (change.type === 'position' && change.position) {
-          setDragPositions(prev => ({ ...prev, [change.id]: change.position! }))
-        }
         if (change.type === 'select' && change.selected) {
           onSelectField(change.id)
         }
@@ -135,11 +174,6 @@ function WhiteboardCanvasInner({
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       onUpdateField(node.id, { position: node.position })
-      setDragPositions(prev => {
-        const next = { ...prev }
-        delete next[node.id]
-        return next
-      })
     },
     [onUpdateField]
   )
@@ -156,8 +190,10 @@ function WhiteboardCanvasInner({
   )
 
   const onConnectStart = useCallback(
-    (_event: any, params: { nodeId: string | null }) => {
-      connectingFrom.current = params.nodeId
+    (_event: any, params: { nodeId: string | null; handleId: string | null }) => {
+      if (params.nodeId) {
+        connectingFrom.current = { nodeId: params.nodeId, handleId: params.handleId }
+      }
     },
     []
   )
@@ -183,8 +219,8 @@ function WhiteboardCanvasInner({
 
   const onConnectEnd: OnConnectEnd = useCallback(
     (event) => {
-      const sourceId = connectingFrom.current
-      if (!sourceId) return
+      const source = connectingFrom.current
+      if (!source) return
       connectingFrom.current = null
 
       const target = (event as MouseEvent).target as HTMLElement
@@ -195,9 +231,15 @@ function WhiteboardCanvasInner({
         y: (event as MouseEvent).clientY,
       })
 
-      onAddField(position)
+      const newField = onAddField(position)
+      onAddConnection({
+        sourceFieldId: source.nodeId,
+        targetFieldId: newField.id,
+        sourceHandle: source.handleId || 'bottom',
+        targetHandle: 'top',
+      })
     },
-    [onAddField, screenToFlowPosition]
+    [onAddField, onAddConnection, screenToFlowPosition]
   )
 
   const onPaneClick = useCallback(() => {
