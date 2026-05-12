@@ -236,6 +236,8 @@ function WhiteboardCanvasInner({
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
         multiSelectionKeyCode="Shift"
+        nodesFocusable={false}
+        edgesFocusable={false}
       >
         <Background variant={BackgroundVariant.Dots} gap={28} size={1.1} color="var(--rule)" />
         <Controls />

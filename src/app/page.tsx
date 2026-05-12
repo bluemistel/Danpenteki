@@ -149,20 +149,7 @@ export default function Home() {
             </div>
           }
           right={
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {/* Preview header */}
-              <div style={{
-                height: 40, flexShrink: 0,
-                display: 'flex', alignItems: 'center', padding: '0 14px',
-                borderBottom: '1px dashed var(--rule)',
-                background: 'var(--paper-2)',
-              }}>
-                <span className="hand" style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-soft)' }}>プレビュー</span>
-              </div>
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <PreviewPane items={previewItems} groups={previewGroups} selectedFieldId={selectedFieldId} />
-              </div>
-            </div>
+            <PreviewPane items={previewItems} groups={previewGroups} selectedFieldId={selectedFieldId} />
           }
         />
       </div>

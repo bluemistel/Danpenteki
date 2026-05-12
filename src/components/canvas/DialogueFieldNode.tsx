@@ -91,11 +91,15 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
         className={`handle-analog ${hasConn('source', 'right-source') ? 'connected' : ''}`} id="right-source" />
 
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '8px 10px 6px',
-        borderBottom: '1px dashed var(--rule)',
-      }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '8px 10px 6px',
+          borderBottom: '1px dashed var(--rule)',
+        }}
+        onKeyDown={e => e.stopPropagation()}
+        onKeyUp={e => e.stopPropagation()}
+      >
         {editingLabel ? (
           <LocalInput
             value={f.label}
@@ -132,7 +136,11 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
 
       {/* Body */}
       {!f.collapsed && (
-        <div className="nodrag nowheel nopan">
+        <div
+          className="nodrag nowheel nopan"
+          onKeyDown={e => e.stopPropagation()}
+          onKeyUp={e => e.stopPropagation()}
+        >
           {f.blocks.length > 0 && (
             <div style={{ padding: '8px 10px' }}>
               {f.blocks.map((block, i) => (
