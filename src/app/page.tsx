@@ -78,6 +78,12 @@ export default function Home() {
           style={{ borderRadius: 8, boxShadow: '0 2px 0 rgba(0,0,0,0.15), 0 6px 12px -4px rgba(20,15,5,0.40)', flexShrink: 0 }}
         />
 
+        <span className="hand" style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', flexShrink: 0 }}>
+          DanpentekiBoard
+        </span>
+
+        <div className="v-divider" style={{ height: 28, flexShrink: 0 }} />
+
         {/* Project name — clickable */}
         <button
           onClick={() => setShowProjectManager(true)}
@@ -91,7 +97,7 @@ export default function Home() {
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           <span className="hand" style={{
-            fontSize: 20, fontWeight: 600, color: 'var(--ink)',
+            fontSize: 18, fontWeight: 600, color: 'var(--ink-soft)',
             maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {workspace.name}
