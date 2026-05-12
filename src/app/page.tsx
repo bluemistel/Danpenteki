@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { usePreview } from '@/hooks/usePreview'
 import { WhiteboardCanvas } from '@/components/canvas/WhiteboardCanvas'
 import { PreviewPane } from '@/components/preview/PreviewPane'
 import { SplitLayout } from '@/components/shared/SplitLayout'
 import { CharacterManager } from '@/components/characters/CharacterManager'
-import { Users, Undo2, Redo2 } from 'lucide-react'
+import { ProjectManager } from '@/components/projects/ProjectManager'
+import { HelpModal } from '@/components/shared/HelpModal'
+import { Users, Undo2, Redo2, ChevronDown, HelpCircle } from 'lucide-react'
 import Image from 'next/image'
 
 export default function Home() {
@@ -18,10 +20,13 @@ export default function Home() {
     addConnection, removeConnection,
     setCharacters, setViewport,
     undo, redo, canUndo, canRedo,
+    renameWorkspace, switchWorkspace, createWorkspace, deleteProject, listProjects,
   } = useWorkspace()
 
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [showCharacterManager, setShowCharacterManager] = useState(false)
+  const [showProjectManager, setShowProjectManager] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -61,7 +66,7 @@ export default function Home() {
         background: 'var(--paper-1)',
         borderBottom: '1px solid var(--rule)',
         boxShadow: '0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 12px -10px rgba(40,30,15,0.30)',
-        display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12,
+        display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10,
         position: 'relative', zIndex: 5,
       }}>
         {/* Logo */}
@@ -70,19 +75,33 @@ export default function Home() {
           alt="DanpentekiBoard"
           width={32}
           height={32}
-          style={{ borderRadius: 8, boxShadow: '0 2px 0 rgba(0,0,0,0.15), 0 6px 12px -4px rgba(20,15,5,0.40)' }}
+          style={{ borderRadius: 8, boxShadow: '0 2px 0 rgba(0,0,0,0.15), 0 6px 12px -4px rgba(20,15,5,0.40)', flexShrink: 0 }}
         />
 
-        <span className="hand" style={{ fontSize: 22, fontWeight: 600, color: 'var(--ink)' }}>
-          DanpentekiBoard
-        </span>
-
-        <div className="chip mono" style={{ fontSize: 9.5 }}>
-          会話フローエディタ
-        </div>
+        {/* Project name — clickable */}
+        <button
+          onClick={() => setShowProjectManager(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '4px 8px', borderRadius: 8,
+            transition: 'background 0.1s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(40,30,15,0.05)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          <span className="hand" style={{
+            fontSize: 20, fontWeight: 600, color: 'var(--ink)',
+            maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {workspace.name}
+          </span>
+          <ChevronDown size={14} style={{ color: 'var(--ink-faint)', flexShrink: 0 }} />
+        </button>
 
         <div style={{ flex: 1 }} />
 
+        {/* Undo/Redo */}
         <div style={{ display: 'flex', gap: 2 }}>
           <button
             onClick={undo}
@@ -119,6 +138,16 @@ export default function Home() {
         >
           <Users size={14} />
           キャラクター
+        </button>
+
+        {/* Help button */}
+        <button
+          onClick={() => setShowHelp(true)}
+          className="btn-ghost"
+          style={{ padding: 5, border: 'none' }}
+          title="使い方・ショートカット"
+        >
+          <HelpCircle size={16} />
         </button>
       </header>
 
@@ -160,6 +189,22 @@ export default function Home() {
           onUpdate={setCharacters}
           onClose={() => setShowCharacterManager(false)}
         />
+      )}
+
+      {showProjectManager && (
+        <ProjectManager
+          currentId={workspace.id}
+          onSwitch={switchWorkspace}
+          onCreate={createWorkspace}
+          onDelete={deleteProject}
+          onRename={renameWorkspace}
+          onList={listProjects}
+          onClose={() => setShowProjectManager(false)}
+        />
+      )}
+
+      {showHelp && (
+        <HelpModal onClose={() => setShowHelp(false)} />
       )}
     </div>
   )

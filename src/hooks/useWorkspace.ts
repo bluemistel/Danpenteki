@@ -3,15 +3,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Workspace, DialogueField, DialogueBlock, Connection, Character } from '@/types'
 import { generateId } from '@/lib/id'
-import { saveWorkspace, loadWorkspace } from '@/lib/storage'
+import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs } from '@/lib/storage'
 import { useUndoRedo } from './useUndoRedo'
 
-const DEFAULT_WORKSPACE_ID = 'default'
+const LAST_WS_KEY = 'danpenteki-last-workspace'
 
-function createDefaultWorkspace(): Workspace {
+function createNewWorkspace(name = '新しいプロジェクト'): Workspace {
   return {
-    id: DEFAULT_WORKSPACE_ID,
-    name: '新しいワークスペース',
+    id: generateId(),
+    name,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     characters: [],
@@ -22,18 +22,27 @@ function createDefaultWorkspace(): Workspace {
 }
 
 export function useWorkspace() {
-  const [workspace, setWorkspace] = useState<Workspace>(createDefaultWorkspace)
+  const [workspace, setWorkspace] = useState<Workspace>(createNewWorkspace)
   const [loaded, setLoaded] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { canUndo, canRedo, pushSnapshot, undo: undoSnap, redo: redoSnap } = useUndoRedo()
+  const { canUndo, canRedo, pushSnapshot, undo: undoSnap, redo: redoSnap, clear: clearHistory } = useUndoRedo()
   const prevWsRef = useRef<Workspace | null>(null)
   const skipHistoryRef = useRef(false)
 
   useEffect(() => {
-    loadWorkspace(DEFAULT_WORKSPACE_ID).then(ws => {
-      if (ws) setWorkspace(ws)
+    (async () => {
+      const lastId = localStorage.getItem(LAST_WS_KEY)
+      if (lastId) {
+        const ws = await loadWorkspace(lastId)
+        if (ws) { setWorkspace(ws); setLoaded(true); return }
+      }
+      const all = await listWs()
+      if (all.length > 0) {
+        const latest = all.sort((a, b) => b.updatedAt - a.updatedAt)[0]
+        setWorkspace(latest)
+      }
       setLoaded(true)
-    })
+    })()
   }, [])
 
   useEffect(() => {
@@ -55,6 +64,7 @@ export function useWorkspace() {
 
   useEffect(() => {
     if (!loaded) return
+    localStorage.setItem(LAST_WS_KEY, workspace.id)
     if (saveTimeout.current) clearTimeout(saveTimeout.current)
     saveTimeout.current = setTimeout(() => {
       saveWorkspace({ ...workspace, updatedAt: Date.now() })
@@ -217,6 +227,63 @@ export function useWorkspace() {
     }
   }, [workspace, redoSnap])
 
+  const renameWorkspace = useCallback((name: string) => {
+    setWorkspace(ws => ({ ...ws, name }))
+  }, [])
+
+  const switchWorkspace = useCallback(async (id: string) => {
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current)
+      await saveWorkspace({ ...workspace, updatedAt: Date.now() })
+    }
+    const ws = await loadWorkspace(id)
+    if (ws) {
+      skipHistoryRef.current = true
+      clearHistory()
+      prevWsRef.current = null
+      setWorkspace(ws)
+    }
+  }, [workspace, clearHistory])
+
+  const createWorkspace = useCallback(async () => {
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current)
+      await saveWorkspace({ ...workspace, updatedAt: Date.now() })
+    }
+    const ws = createNewWorkspace()
+    skipHistoryRef.current = true
+    clearHistory()
+    prevWsRef.current = null
+    setWorkspace(ws)
+    await saveWorkspace(ws)
+    return ws
+  }, [workspace, clearHistory])
+
+  const deleteProject = useCallback(async (id: string) => {
+    await deleteWs(id)
+    if (workspace.id === id) {
+      const all = await listWs()
+      if (all.length > 0) {
+        const latest = all.sort((a, b) => b.updatedAt - a.updatedAt)[0]
+        skipHistoryRef.current = true
+        clearHistory()
+        prevWsRef.current = null
+        setWorkspace(latest)
+      } else {
+        const ws = createNewWorkspace()
+        skipHistoryRef.current = true
+        clearHistory()
+        prevWsRef.current = null
+        setWorkspace(ws)
+        await saveWorkspace(ws)
+      }
+    }
+  }, [workspace.id, clearHistory])
+
+  const listProjects = useCallback(async () => {
+    return listWs()
+  }, [])
+
   return {
     workspace,
     loaded,
@@ -235,5 +302,10 @@ export function useWorkspace() {
     redo,
     canUndo,
     canRedo,
+    renameWorkspace,
+    switchWorkspace,
+    createWorkspace,
+    deleteProject,
+    listProjects,
   }
 }

@@ -53,5 +53,10 @@ export function useUndoRedo() {
     return next
   }, [redoStack])
 
-  return { canUndo, canRedo, pushSnapshot, undo, redo }
+  const clear = useCallback(() => {
+    setUndoStack([])
+    setRedoStack([])
+  }, [])
+
+  return { canUndo, canRedo, pushSnapshot, undo, redo, clear }
 }

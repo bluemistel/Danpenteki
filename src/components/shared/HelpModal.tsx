@@ -1,0 +1,118 @@
+'use client'
+
+import { X } from 'lucide-react'
+
+interface HelpModalProps {
+  onClose: () => void
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd style={{
+      display: 'inline-block', padding: '1px 6px', borderRadius: 4,
+      background: 'var(--paper-0)', border: '1px solid var(--rule)',
+      fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+      boxShadow: '0 1px 0 var(--rule)',
+    }}>
+      {children}
+    </kbd>
+  )
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <h3 className="hand" style={{
+        fontSize: 18, fontWeight: 600, color: 'var(--ink)',
+        marginBottom: 8, paddingBottom: 4,
+        borderBottom: '1px dashed var(--rule)',
+      }}>
+        {title}
+      </h3>
+      {children}
+    </div>
+  )
+}
+
+function ShortcutRow({ keys, desc }: { keys: React.ReactNode; desc: string }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '4px 0',
+    }}>
+      <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{desc}</span>
+      <span style={{ display: 'flex', gap: 4, flexShrink: 0, marginLeft: 12 }}>{keys}</span>
+    </div>
+  )
+}
+
+export function HelpModal({ onClose }: HelpModalProps) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(40,30,15,0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{
+        background: 'var(--paper-2)', borderRadius: 18,
+        boxShadow: 'var(--shadow-deep)',
+        width: '90%', maxWidth: 480, maxHeight: '80vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', padding: '16px 20px 12px',
+          borderBottom: '1px dashed var(--rule)',
+        }}>
+          <span className="hand" style={{ fontSize: 22, fontWeight: 600, flex: 1 }}>
+            使い方
+          </span>
+          <button onClick={onClose} className="btn-ghost" style={{ padding: 6, border: 'none' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          <Section title="基本操作">
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+              <p>キャンバスをダブルクリックしてフィールドを作成します。</p>
+              <p>フィールド内の「+ ブロック追加」でセリフブロックを追加します。</p>
+              <p>ハンドル（丸いノード）をドラッグして別のフィールドに接続できます。</p>
+              <p>ハンドルを空のスペースにドラッグすると新しいフィールドが作成され、自動的に接続されます。</p>
+              <p>ハンドルを Alt+クリック すると接続を削除できます。</p>
+              <p>フィールド名をダブルクリックで編集できます。</p>
+            </div>
+          </Section>
+
+          <Section title="ショートカットキー">
+            <ShortcutRow desc="元に戻す" keys={<><Kbd>Ctrl</Kbd><Kbd>Z</Kbd></>} />
+            <ShortcutRow desc="やり直し" keys={<><Kbd>Ctrl</Kbd><Kbd>Y</Kbd></>} />
+            <ShortcutRow desc="ブロック追加" keys={<><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></>} />
+            <ShortcutRow desc="前のキャラクターに切替" keys={<><Kbd>Alt</Kbd><Kbd>↑</Kbd></>} />
+            <ShortcutRow desc="次のキャラクターに切替" keys={<><Kbd>Alt</Kbd><Kbd>↓</Kbd></>} />
+          </Section>
+
+          <Section title="プロジェクト管理">
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+              <p>ヘッダーのプロジェクト名をクリックするとプロジェクト一覧が開きます。</p>
+              <p>プロジェクトの新規作成・名前変更・削除・切り替えが行えます。</p>
+              <p>データはブラウザのローカルストレージに自動保存されます。</p>
+            </div>
+          </Section>
+
+          <Section title="プレビュー">
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+              <p>フィールドを選択すると、接続先を含む会話の流れが右ペインに表示されます。</p>
+              <p>プレビューペインの境界をドラッグして幅を調整できます。</p>
+              <p>閉じるボタンでプレビューを折りたためます。</p>
+            </div>
+          </Section>
+        </div>
+      </div>
+    </div>
+  )
+}
