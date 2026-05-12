@@ -19,14 +19,23 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
   const composingRef = useRef(false)
   const focusedRef = useRef(false)
   const ref = useRef<HTMLTextAreaElement>(null)
-  const callbackRefs = useRef({ onCtrlEnter, onAltUp, onAltDown })
-  callbackRefs.current = { onCtrlEnter, onAltUp, onAltDown }
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const localValueRef = useRef(localValue)
+  const callbackRefs = useRef({ onCtrlEnter, onAltUp, onAltDown, onChange })
+  callbackRefs.current = { onCtrlEnter, onAltUp, onAltDown, onChange }
 
   useEffect(() => {
     if (!focusedRef.current) {
       setLocalValue(value)
+      localValueRef.current = value
     }
   }, [value])
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     const el = ref.current
@@ -36,6 +45,7 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
           e.stopPropagation()
           e.preventDefault()
+          flushDebounce()
           callbackRefs.current.onCtrlEnter?.()
           return
         }
@@ -64,12 +74,26 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
     }
   }, [])
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalValue(e.target.value)
-    if (!composingRef.current) {
-      onChange(e.target.value)
+  const flushDebounce = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+      callbackRefs.current.onChange(localValueRef.current)
     }
-  }, [onChange])
+  }, [])
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setLocalValue(val)
+    localValueRef.current = val
+    if (!composingRef.current) {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null
+        callbackRefs.current.onChange(localValueRef.current)
+      }, 300)
+    }
+  }, [])
 
   const handleCompositionStart = useCallback(() => {
     composingRef.current = true
@@ -79,8 +103,13 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
     composingRef.current = false
     const val = (e.target as HTMLTextAreaElement).value
     setLocalValue(val)
-    onChange(val)
-  }, [onChange])
+    localValueRef.current = val
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null
+      callbackRefs.current.onChange(localValueRef.current)
+    }, 300)
+  }, [])
 
   const handleFocus = useCallback(() => {
     focusedRef.current = true
@@ -88,10 +117,14 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
 
   const handleBlur = useCallback(() => {
     focusedRef.current = false
-    if (localValue !== value) {
-      onChange(localValue)
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
     }
-  }, [localValue, value, onChange])
+    if (localValueRef.current !== value) {
+      onChange(localValueRef.current)
+    }
+  }, [value, onChange])
 
   return (
     <textarea

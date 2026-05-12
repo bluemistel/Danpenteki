@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import {
   ReactFlow,
   Background,
@@ -45,36 +45,6 @@ interface WhiteboardCanvasProps {
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void
 }
 
-function buildNodesFromFields(
-  fields: DialogueField[],
-  characters: Character[],
-  connections: Connection[],
-  selectedFieldId: string | null,
-  callbacks: {
-    onUpdateField: WhiteboardCanvasProps['onUpdateField']
-    onAddBlock: WhiteboardCanvasProps['onAddBlock']
-    onUpdateBlock: WhiteboardCanvasProps['onUpdateBlock']
-    onRemoveBlock: WhiteboardCanvasProps['onRemoveBlock']
-    onRemoveField: WhiteboardCanvasProps['onRemoveField']
-    onRemoveConnectionsAt: (fieldId: string, handleType: 'source' | 'target', handleId: string) => void
-  },
-  prevNodes: Node[],
-): Node[] {
-  const posMap = new Map(prevNodes.map(n => [n.id, n.position]))
-  return fields.map(field => ({
-    id: field.id,
-    type: 'dialogueField',
-    position: posMap.get(field.id) || field.position,
-    selected: field.id === selectedFieldId,
-    data: {
-      field,
-      characters,
-      connections,
-      ...callbacks,
-    } satisfies DialogueFieldNodeData,
-  }))
-}
-
 function WhiteboardCanvasInner({
   fields,
   connections,
@@ -111,36 +81,45 @@ function WhiteboardCanvasInner({
     [connections, onRemoveConnection]
   )
 
+  // Stable callback refs to avoid node data staleness
+  const cbRef = useRef({
+    onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
+    onRemoveField, onRemoveConnectionsAt,
+  })
+  cbRef.current = {
+    onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
+    onRemoveField, onRemoveConnectionsAt,
+  }
+
+  const stableCallbacks = useMemo(() => ({
+    onUpdateField: (...args: Parameters<typeof onUpdateField>) => cbRef.current.onUpdateField(...args),
+    onAddBlock: (...args: Parameters<typeof onAddBlock>) => cbRef.current.onAddBlock(...args),
+    onUpdateBlock: (...args: Parameters<typeof onUpdateBlock>) => cbRef.current.onUpdateBlock(...args),
+    onRemoveBlock: (...args: Parameters<typeof onRemoveBlock>) => cbRef.current.onRemoveBlock(...args),
+    onRemoveField: (...args: Parameters<typeof onRemoveField>) => cbRef.current.onRemoveField(...args),
+    onRemoveConnectionsAt: (...args: Parameters<typeof onRemoveConnectionsAt>) => cbRef.current.onRemoveConnectionsAt(...args),
+  }), [])
+
   const [nodes, setNodes] = useState<Node[]>([])
 
-  // Synchronous data sync: update nodes during render (not in useEffect)
-  // React detects setState during render and re-renders immediately
-  // WITHOUT committing the stale intermediate state to the DOM.
-  const prevSyncRef = useRef<{
-    fields: DialogueField[]
-    characters: Character[]
-    connections: Connection[]
-    selectedFieldId: string | null
-    onRemoveConnectionsAt: typeof onRemoveConnectionsAt
-  }>({ fields: [], characters: [], connections: [], selectedFieldId: null, onRemoveConnectionsAt })
-
-  const prev = prevSyncRef.current
-  if (
-    prev.fields !== fields ||
-    prev.characters !== characters ||
-    prev.connections !== connections ||
-    prev.selectedFieldId !== selectedFieldId ||
-    prev.onRemoveConnectionsAt !== onRemoveConnectionsAt
-  ) {
-    prevSyncRef.current = { fields, characters, connections, selectedFieldId, onRemoveConnectionsAt }
-    setNodes(prevNodes =>
-      buildNodesFromFields(
-        fields, characters, connections, selectedFieldId,
-        { onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt },
-        prevNodes,
-      )
-    )
-  }
+  // Rebuild nodes when data changes, preserving RF-managed positions
+  useEffect(() => {
+    setNodes(prevNodes => {
+      const posMap = new Map(prevNodes.map(n => [n.id, n.position]))
+      return fields.map(field => ({
+        id: field.id,
+        type: 'dialogueField' as const,
+        position: posMap.get(field.id) || field.position,
+        selected: field.id === selectedFieldId,
+        data: {
+          field,
+          characters,
+          connections,
+          ...stableCallbacks,
+        } satisfies DialogueFieldNodeData,
+      }))
+    })
+  }, [fields, characters, connections, selectedFieldId, stableCallbacks])
 
   const edges: Edge[] = useMemo(
     () =>
@@ -200,6 +179,7 @@ function WhiteboardCanvasInner({
 
   const onConnect = useCallback(
     (params: RFConnection) => {
+      connectingFrom.current = null
       if (!params.source || !params.target) return
       if (params.source === params.target) return
 
