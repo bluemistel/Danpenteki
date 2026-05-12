@@ -19,9 +19,7 @@ function AltClickHandle({ onAltClick, ...props }: React.ComponentProps<typeof Ha
   }, [onAltClick])
 
   return (
-    <div onClickCapture={handleClick}>
-      <Handle {...props} />
-    </div>
+    <Handle {...props} onClick={handleClick} />
   )
 }
 
@@ -98,6 +96,7 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
             style={{
               flex: 1, fontSize: 18, fontWeight: 600, color: 'var(--ink)',
               cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textAlign: 'center',
             }}
             onDoubleClick={() => setEditingLabel(true)}
           >

@@ -26,7 +26,12 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const stop = (e: Event) => { e.stopPropagation() }
+    const stop = (e: KeyboardEvent) => {
+      e.stopPropagation()
+      if (composingRef.current && (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete')) {
+        return
+      }
+    }
     el.addEventListener('keydown', stop, true)
     el.addEventListener('keyup', stop, true)
     el.addEventListener('keypress', stop, true)
@@ -38,10 +43,10 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
   }, [])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalValue(e.target.value)
-    if (!composingRef.current) {
-      onChange(e.target.value)
-    }
+    const val = e.target.value
+    if (composingRef.current) return
+    setLocalValue(val)
+    onChange(val)
   }, [onChange])
 
   const handleCompositionStart = useCallback(() => {

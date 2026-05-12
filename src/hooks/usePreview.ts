@@ -2,12 +2,19 @@
 
 import { useMemo } from 'react'
 import { DialogueField, DialogueBlock, Connection, Character } from '@/types'
-import { getConnectedChain } from '@/lib/graph'
+import { getConnectedTree, TreeNode } from '@/lib/graph'
 
 export interface PreviewItem {
   block: DialogueBlock
   character: Character | undefined
   fieldLabel: string
+}
+
+export interface PreviewFieldGroup {
+  field: DialogueField
+  depth: number
+  prefixes: string[]
+  items: { block: DialogueBlock; character: Character | undefined }[]
 }
 
 export function usePreview(
@@ -18,18 +25,31 @@ export function usePreview(
 ) {
   const previewItems = useMemo<PreviewItem[]>(() => {
     if (!selectedFieldId) return []
-
-    const chain = getConnectedChain(selectedFieldId, fields, connections)
+    const tree = getConnectedTree(selectedFieldId, fields, connections)
     const charMap = new Map(characters.map(c => [c.id, c]))
-
-    return chain.flatMap(field =>
-      field.blocks.map(block => ({
+    return tree.flatMap(n =>
+      n.field.blocks.map(block => ({
         block,
         character: charMap.get(block.characterId),
-        fieldLabel: field.label,
+        fieldLabel: n.field.label,
       }))
     )
   }, [selectedFieldId, fields, connections, characters])
 
-  return previewItems
+  const previewGroups = useMemo<PreviewFieldGroup[]>(() => {
+    if (!selectedFieldId) return []
+    const tree = getConnectedTree(selectedFieldId, fields, connections)
+    const charMap = new Map(characters.map(c => [c.id, c]))
+    return tree.map(n => ({
+      field: n.field,
+      depth: n.depth,
+      prefixes: n.prefixes,
+      items: n.field.blocks.map(block => ({
+        block,
+        character: charMap.get(block.characterId),
+      })),
+    }))
+  }, [selectedFieldId, fields, connections, characters])
+
+  return { previewItems, previewGroups }
 }

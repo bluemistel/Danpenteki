@@ -37,7 +37,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handler)
   }, [undo, redo])
 
-  const previewItems = usePreview(
+  const { previewItems, previewGroups } = usePreview(
     selectedFieldId,
     workspace.fields,
     workspace.connections,
@@ -160,7 +160,7 @@ export default function Home() {
                 <span className="hand" style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-soft)' }}>プレビュー</span>
               </div>
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                <PreviewPane items={previewItems} selectedFieldId={selectedFieldId} />
+                <PreviewPane items={previewItems} groups={previewGroups} selectedFieldId={selectedFieldId} />
               </div>
             </div>
           }
