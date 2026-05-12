@@ -8,6 +8,7 @@ import { PreviewPane } from '@/components/preview/PreviewPane'
 import { SplitLayout } from '@/components/shared/SplitLayout'
 import { CharacterManager } from '@/components/characters/CharacterManager'
 import { Users, Undo2, Redo2 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function Home() {
   const {
@@ -64,17 +65,16 @@ export default function Home() {
         position: 'relative', zIndex: 5,
       }}>
         {/* Logo */}
-        <div style={{
-          width: 32, height: 32, borderRadius: 10,
-          background: 'var(--ink)', color: 'var(--paper-3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 0 #000, 0 6px 12px -4px rgba(20,15,5,0.40)',
-        }}>
-          <span className="hand" style={{ fontSize: 18, fontWeight: 700 }}>D</span>
-        </div>
+        <Image
+          src="/icon.png"
+          alt="DanpentekiBoard"
+          width={32}
+          height={32}
+          style={{ borderRadius: 8, boxShadow: '0 2px 0 rgba(0,0,0,0.15), 0 6px 12px -4px rgba(20,15,5,0.40)' }}
+        />
 
         <span className="hand" style={{ fontSize: 22, fontWeight: 600, color: 'var(--ink)' }}>
-          Danpenteki
+          DanpentekiBoard
         </span>
 
         <div className="chip mono" style={{ fontSize: 9.5 }}>

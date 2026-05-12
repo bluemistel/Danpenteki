@@ -1,4 +1,8 @@
-# Danpenteki - 会話フローエディタ
+# DanpentekiBoard - 会話フローエディタ
+
+<p align="center">
+  <img src="resource/icon.png" width="128" alt="DanpentekiBoard" />
+</p>
 
 ホワイトボード型の会話フロー管理Webアプリケーション。登場人物の会話をノード（フィールド）としてキャンバス上に自由配置し、線で繋いで会話の流れを構成できます。ゲームシナリオや物語の会話フロー設計に最適です。
 

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Danpenteki - 会話フローエディタ',
+  title: 'DanpentekiBoard - 会話フローエディタ',
   description: 'ホワイトボード型会話管理アプリ',
 }
 
