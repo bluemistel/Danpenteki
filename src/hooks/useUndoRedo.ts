@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { Workspace } from '@/types'
 
-type WorkspaceSnapshot = Pick<Workspace, 'fields' | 'connections' | 'characters'>
+type WorkspaceSnapshot = Pick<Workspace, 'fields' | 'connections' | 'characters' | 'groups'>
 
 const MAX_HISTORY = 50
 
@@ -12,6 +12,7 @@ function snapshot(ws: Workspace): WorkspaceSnapshot {
     fields: ws.fields,
     connections: ws.connections,
     characters: ws.characters,
+    groups: ws.groups,
   }))
 }
 

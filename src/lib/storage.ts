@@ -38,14 +38,21 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
   await db.put('workspaces', workspace)
 }
 
+function migrateWorkspace(ws: Workspace): Workspace {
+  if (!ws.groups) (ws as any).groups = []
+  return ws
+}
+
 export async function loadWorkspace(id: string): Promise<Workspace | undefined> {
   const db = await getDB()
-  return db.get('workspaces', id)
+  const ws = await db.get('workspaces', id)
+  return ws ? migrateWorkspace(ws) : undefined
 }
 
 export async function listWorkspaces(): Promise<Workspace[]> {
   const db = await getDB()
-  return db.getAll('workspaces')
+  const all = await db.getAll('workspaces')
+  return all.map(migrateWorkspace)
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {

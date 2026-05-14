@@ -15,15 +15,17 @@ import Image from 'next/image'
 export default function Home() {
   const {
     workspace, loaded,
-    addField, updateField, removeField,
+    addField, updateField, removeField, removeFields,
     addBlock, updateBlock, removeBlock, moveBlock,
     addConnection, removeConnection,
+    addGroup, updateGroup, removeGroup,
     setCharacters, setViewport,
     undo, redo, canUndo, canRedo,
     renameWorkspace, switchWorkspace, createWorkspace, deleteProject, listProjects,
   } = useWorkspace()
 
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([])
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [showProjectManager, setShowProjectManager] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -169,17 +171,23 @@ export default function Home() {
                 fields={workspace.fields}
                 connections={workspace.connections}
                 characters={workspace.characters}
+                groups={workspace.groups}
                 selectedFieldId={selectedFieldId}
                 onSelectField={setSelectedFieldId}
                 onUpdateField={updateField}
                 onAddField={addField}
                 onRemoveField={removeField}
+                onRemoveFields={removeFields}
                 onAddBlock={addBlock}
                 onUpdateBlock={updateBlock}
                 onRemoveBlock={removeBlock}
                 onAddConnection={addConnection}
                 onRemoveConnection={removeConnection}
+                onAddGroup={addGroup}
+                onUpdateGroup={updateGroup}
+                onRemoveGroup={removeGroup}
                 onViewportChange={setViewport}
+                onSelectionChange={setSelectedFieldIds}
               />
             </div>
           }

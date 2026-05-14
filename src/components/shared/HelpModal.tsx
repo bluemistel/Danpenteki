@@ -85,12 +85,34 @@ export function HelpModal({ onClose }: HelpModalProps) {
               <p>ハンドルを空のスペースにドラッグすると新しいフィールドが作成され、自動的に接続されます。</p>
               <p>ハンドルを Alt+クリック すると接続を削除できます。</p>
               <p>フィールド名をダブルクリックで編集できます。</p>
+              <p>フィールドの右端をドラッグして幅を変更できます。</p>
+            </div>
+          </Section>
+
+          <Section title="範囲選択・複数選択">
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+              <p>キャンバスの空きスペースを左ドラッグして矩形範囲を描き、複数のフィールドを一括選択できます。</p>
+              <p>キャンバスの移動（パン）はマウスの中ボタン or 右ボタンでドラッグします。</p>
+              <p>Shift+クリックでフィールドを追加選択できます。</p>
+              <p>複数選択中にフィールドをドラッグすると、選択中の全フィールドがまとめて移動します。</p>
+              <p>複数選択時にツールバーが表示され、グループ作成や一括削除が行えます。</p>
+            </div>
+          </Section>
+
+          <Section title="グループ">
+            <div style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.7 }}>
+              <p>複数フィールドを選択してツールバーの「グループ作成」で、フィールドをグループ化できます。</p>
+              <p>グループ名をダブルクリックで編集できます。</p>
+              <p>カラードットをクリックしてグループの輪郭色を変更できます。</p>
+              <p>✕ボタンでグループを解除できます（フィールドは残ります）。</p>
             </div>
           </Section>
 
           <Section title="ショートカットキー">
             <ShortcutRow desc="元に戻す" keys={<><Kbd>Ctrl</Kbd><Kbd>Z</Kbd></>} />
             <ShortcutRow desc="やり直し" keys={<><Kbd>Ctrl</Kbd><Kbd>Y</Kbd></>} />
+            <ShortcutRow desc="範囲選択" keys={<span>空きスペースをドラッグ</span>} />
+            <ShortcutRow desc="追加選択" keys={<><Kbd>Shift</Kbd><span>+クリック</span></>} />
             <ShortcutRow desc="ブロック追加" keys={<><Kbd>Ctrl</Kbd><Kbd>Enter</Kbd></>} />
             <ShortcutRow desc="前のキャラクターに切替" keys={<><Kbd>Alt</Kbd><Kbd>↑</Kbd></>} />
             <ShortcutRow desc="次のキャラクターに切替" keys={<><Kbd>Alt</Kbd><Kbd>↓</Kbd></>} />

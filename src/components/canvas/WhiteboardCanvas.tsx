@@ -18,51 +18,68 @@ import {
   OnNodesChange,
   OnEdgesChange,
   NodeChange,
+  SelectionMode,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { DialogueFieldNode, DialogueFieldNodeData } from './DialogueFieldNode'
-import { DialogueField, Character, Connection, DialogueBlock } from '@/types'
+import { GroupNode, GroupNodeData } from './GroupNode'
+import { SelectionToolbar } from './SelectionToolbar'
+import { DialogueField, Character, Connection, DialogueBlock, FieldGroup } from '@/types'
 import { hasCycle } from '@/lib/graph'
 
 const nodeTypes: NodeTypes = {
   dialogueField: DialogueFieldNode as any,
+  fieldGroup: GroupNode as any,
 }
 
 interface WhiteboardCanvasProps {
   fields: DialogueField[]
   connections: Connection[]
   characters: Character[]
+  groups: FieldGroup[]
   selectedFieldId: string | null
   onSelectField: (id: string | null) => void
   onUpdateField: (id: string, updates: Partial<DialogueField>) => void
   onAddField: (position: { x: number; y: number }) => DialogueField
   onRemoveField: (id: string) => void
+  onRemoveFields: (ids: string[]) => void
   onAddBlock: (fieldId: string, characterId?: string) => void
   onUpdateBlock: (fieldId: string, blockId: string, updates: Partial<DialogueBlock>) => void
   onRemoveBlock: (fieldId: string, blockId: string) => void
   onAddConnection: (conn: Omit<Connection, 'id' | 'order'>) => void
   onRemoveConnection: (id: string) => void
+  onAddGroup: (fieldIds: string[], name?: string, color?: string) => FieldGroup
+  onUpdateGroup: (id: string, updates: Partial<FieldGroup>) => void
+  onRemoveGroup: (id: string) => void
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void
+  onSelectionChange?: (fieldIds: string[]) => void
 }
 
 function WhiteboardCanvasInner({
   fields,
   connections,
   characters,
+  groups,
   selectedFieldId,
   onSelectField,
   onUpdateField,
   onAddField,
   onRemoveField,
+  onRemoveFields,
   onAddBlock,
   onUpdateBlock,
   onRemoveBlock,
   onAddConnection,
   onRemoveConnection,
+  onAddGroup,
+  onUpdateGroup,
+  onRemoveGroup,
   onViewportChange,
+  onSelectionChange,
 }: WhiteboardCanvasProps) {
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, getNodes } = useReactFlow()
   const connectingFrom = useRef<{ nodeId: string; handleId: string | null } | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const onRemoveConnectionsAt = useCallback(
     (fieldId: string, handleType: 'source' | 'target', handleId: string) => {
@@ -84,11 +101,11 @@ function WhiteboardCanvasInner({
   // Stable callback refs — never change reference, always call latest function
   const cbRef = useRef({
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
-    onRemoveField, onRemoveConnectionsAt,
+    onRemoveField, onRemoveConnectionsAt, onUpdateGroup, onRemoveGroup,
   })
   cbRef.current = {
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
-    onRemoveField, onRemoveConnectionsAt,
+    onRemoveField, onRemoveConnectionsAt, onUpdateGroup, onRemoveGroup,
   }
 
   const stableCallbacks = useMemo(() => ({
@@ -98,28 +115,45 @@ function WhiteboardCanvasInner({
     onRemoveBlock: (...args: Parameters<typeof onRemoveBlock>) => cbRef.current.onRemoveBlock(...args),
     onRemoveField: (...args: Parameters<typeof onRemoveField>) => cbRef.current.onRemoveField(...args),
     onRemoveConnectionsAt: (...args: Parameters<typeof onRemoveConnectionsAt>) => cbRef.current.onRemoveConnectionsAt(...args),
+    onUpdateGroup: (...args: Parameters<typeof onUpdateGroup>) => cbRef.current.onUpdateGroup(...args),
+    onRemoveGroup: (...args: Parameters<typeof onRemoveGroup>) => cbRef.current.onRemoveGroup(...args),
   }), [])
 
   const [nodes, setNodes] = useState<Node[]>([])
 
-  // Sync data to nodes: preserve ALL React Flow internal properties,
-  // only update `data` and `selected`.
+  // Build node data object (memoized per field to reduce re-renders)
+  const nodeDataMap = useMemo(() => {
+    const map = new Map<string, DialogueFieldNodeData>()
+    for (const field of fields) {
+      map.set(field.id, {
+        field,
+        characters,
+        connections,
+        ...stableCallbacks,
+      })
+    }
+    return map
+  }, [fields, characters, connections, stableCallbacks])
+
+  // Sync field/group changes to nodes, preserving React Flow internals
   useEffect(() => {
     setNodes(prevNodes => {
       const prevMap = new Map(prevNodes.map(n => [n.id, n]))
-      return fields.map(field => {
+      const fieldIdSet = new Set(fields.map(f => f.id))
+
+      // Build field nodes - preserve ALL existing properties including selected
+      const fieldNodes: Node[] = fields.map(field => {
         const existing = prevMap.get(field.id)
         if (existing) {
-          // Spread existing node to keep RF internals (measured, width, height, position, etc.)
+          // Only update data and style width, keep everything else (selected, position, measured, etc.)
+          const newData = nodeDataMap.get(field.id)!
+          if (existing.data === newData && (existing.style as any)?.width === field.width) {
+            return existing // No change, reuse same object
+          }
           return {
             ...existing,
-            selected: field.id === selectedFieldId,
-            data: {
-              field,
-              characters,
-              connections,
-              ...stableCallbacks,
-            } satisfies DialogueFieldNodeData,
+            style: { ...existing.style, width: field.width },
+            data: newData,
           }
         }
         // New node
@@ -127,17 +161,63 @@ function WhiteboardCanvasInner({
           id: field.id,
           type: 'dialogueField' as const,
           position: field.position,
-          selected: field.id === selectedFieldId,
-          data: {
-            field,
-            characters,
-            connections,
-            ...stableCallbacks,
-          } satisfies DialogueFieldNodeData,
+          style: { width: field.width },
+          data: nodeDataMap.get(field.id)!,
         }
       })
+
+      // Build group nodes from measured field positions
+      const measuredNodes = getNodes()
+      const measuredMap = new Map(measuredNodes.map(n => [n.id, n]))
+
+      const groupNodes: Node[] = groups.map(group => {
+        const memberNodes = group.fieldIds
+          .map(fid => measuredMap.get(fid) || fieldNodes.find(n => n.id === fid))
+          .filter(Boolean) as Node[]
+        if (memberNodes.length === 0) return null!
+
+        const padding = 30
+        const labelHeight = 36
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+        for (const n of memberNodes) {
+          const w = n.measured?.width ?? (n.style as any)?.width ?? 280
+          const h = n.measured?.height ?? 200
+          minX = Math.min(minX, n.position.x)
+          minY = Math.min(minY, n.position.y)
+          maxX = Math.max(maxX, n.position.x + w)
+          maxY = Math.max(maxY, n.position.y + h)
+        }
+
+        const groupId = `group-${group.id}`
+        const existing = prevMap.get(groupId)
+        const pos = { x: minX - padding, y: minY - padding - labelHeight }
+        const style = {
+          width: maxX - minX + padding * 2,
+          height: maxY - minY + padding * 2 + labelHeight,
+        }
+
+        return {
+          ...(existing || {}),
+          id: groupId,
+          type: 'fieldGroup' as const,
+          position: pos,
+          style,
+          selectable: false,
+          draggable: false,
+          connectable: false,
+          focusable: false,
+          zIndex: -1,
+          data: {
+            group,
+            ...stableCallbacks,
+          } satisfies GroupNodeData,
+        } as Node
+      }).filter(Boolean)
+
+      return [...groupNodes, ...fieldNodes]
     })
-  }, [fields, characters, connections, selectedFieldId, stableCallbacks])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, nodeDataMap, groups, stableCallbacks, getNodes])
 
   const edges: Edge[] = useMemo(
     () =>
@@ -159,8 +239,9 @@ function WhiteboardCanvasInner({
     (changes: NodeChange[]) => {
       setNodes(nds => applyNodeChanges(changes, nds))
 
+      // Track primary selection for preview
       for (const change of changes) {
-        if (change.type === 'select' && change.selected) {
+        if (change.type === 'select' && change.selected && !change.id.startsWith('group-')) {
           onSelectField(change.id)
         }
       }
@@ -168,9 +249,25 @@ function WhiteboardCanvasInner({
     [onSelectField]
   )
 
+  // Track multi-selection via React Flow's onSelectionChange
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: Node[]; edges: Edge[] }) => {
+      const ids = selectedNodes
+        .filter(n => !n.id.startsWith('group-'))
+        .map(n => n.id)
+      setSelectedIds(ids)
+      onSelectionChange?.(ids)
+    },
+    [onSelectionChange]
+  )
+
   const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      onUpdateField(node.id, { position: node.position })
+    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
+      for (const n of draggedNodes) {
+        if (!n.id.startsWith('group-')) {
+          onUpdateField(n.id, { position: n.position })
+        }
+      }
     },
     [onUpdateField]
   )
@@ -242,6 +339,7 @@ function WhiteboardCanvasInner({
 
   const onPaneClick = useCallback(() => {
     onSelectField(null)
+    setSelectedIds([])
   }, [onSelectField])
 
   const onDoubleClick = useCallback(
@@ -258,8 +356,23 @@ function WhiteboardCanvasInner({
     [onAddField, screenToFlowPosition]
   )
 
+  const handleCreateGroup = useCallback(
+    (fieldIds: string[]) => {
+      onAddGroup(fieldIds)
+    },
+    [onAddGroup]
+  )
+
+  const handleDeleteSelected = useCallback(
+    (fieldIds: string[]) => {
+      onRemoveFields(fieldIds)
+      setSelectedIds([])
+    },
+    [onRemoveFields]
+  )
+
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" style={{ position: 'relative' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -271,11 +384,16 @@ function WhiteboardCanvasInner({
         onConnectEnd={onConnectEnd}
         onPaneClick={onPaneClick}
         onDoubleClick={onDoubleClick}
+        onSelectionChange={handleSelectionChange}
         nodeTypes={nodeTypes}
         fitView
         zoomOnDoubleClick={false}
         deleteKeyCode={null}
+        selectionOnDrag
+        panOnDrag={[1, 2]}
+        selectionKeyCode={null}
         multiSelectionKeyCode="Shift"
+        selectionMode={SelectionMode.Partial}
         nodesFocusable={false}
         edgesFocusable={false}
       >
@@ -284,11 +402,16 @@ function WhiteboardCanvasInner({
         <MiniMap
           pannable
           zoomable
-          nodeColor={() => 'var(--ink-faint)'}
+          nodeColor={(node) => node.id.startsWith('group-') ? 'transparent' : 'var(--ink-faint)'}
           maskColor="rgba(40,30,15,0.06)"
           style={{ background: 'var(--paper-2)', border: '1px solid #d8cdb6', borderRadius: 12 }}
         />
       </ReactFlow>
+      <SelectionToolbar
+        selectedFieldIds={selectedIds}
+        onCreateGroup={handleCreateGroup}
+        onDeleteSelected={handleDeleteSelected}
+      />
     </div>
   )
 }

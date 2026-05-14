@@ -233,3 +233,54 @@ textarea.analog::placeholder, input.analog::placeholder {
 .react-flow__minimap { border-radius: 12px !important; border: 1px solid #d8cdb6 !important; box-shadow: var(--shadow-soft) !important; }
 .react-flow__edge-path { stroke: var(--ink) !important; stroke-width: 1.6 !important; }
 .react-flow__connection-path { stroke: var(--ink-faint) !important; stroke-width: 1.6 !important; stroke-dasharray: 4 4 !important; }
+
+/* Selection box */
+.react-flow__selection { background: rgba(194, 84, 58, 0.08) !important; border: 1.5px dashed var(--accent) !important; border-radius: 4px; }
+.react-flow__nodesselection-rect { background: rgba(194, 84, 58, 0.04) !important; border: 1.5px dashed var(--accent) !important; border-radius: 4px; }
+
+/* Selection toolbar */
+.selection-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--paper-3);
+  border: 1px solid #d8cdb6;
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft);
+}
+.selection-toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  transition: background 0.1s;
+}
+.selection-toolbar-btn:hover { background: rgba(40,30,15,0.06); }
+.selection-toolbar-btn:active { background: rgba(40,30,15,0.10); }
+
+/* Resize handle */
+.resize-control-right { cursor: ew-resize !important; }
+.resize-handle-visual {
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.react-flow__node:hover .resize-handle-visual { opacity: 0.5; }
+.resize-control-right:hover .resize-handle-visual,
+.resize-control-right:active .resize-handle-visual { opacity: 1; }
+
+/* NodeResizer overrides */
+.react-flow__resize-control.line { border-color: transparent !important; }
+.react-flow__resize-control.line:hover { border-color: var(--ink-faint) !important; }
+
+/* Group node */
+.group-node { transition: border-color 0.15s; }

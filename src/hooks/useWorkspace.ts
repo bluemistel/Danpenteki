@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Workspace, DialogueField, DialogueBlock, Connection, Character } from '@/types'
+import { Workspace, DialogueField, DialogueBlock, Connection, Character, FieldGroup } from '@/types'
 import { generateId } from '@/lib/id'
 import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs } from '@/lib/storage'
 import { useUndoRedo } from './useUndoRedo'
@@ -17,6 +17,7 @@ function createNewWorkspace(name = '新しいプロジェクト'): Workspace {
     characters: [],
     fields: [],
     connections: [],
+    groups: [],
     viewport: { x: 0, y: 0, zoom: 1 },
   }
 }
@@ -54,7 +55,8 @@ export function useWorkspace() {
       const dataChanged =
         prev.fields !== workspace.fields ||
         prev.connections !== workspace.connections ||
-        prev.characters !== workspace.characters
+        prev.characters !== workspace.characters ||
+        prev.groups !== workspace.groups
       if (dataChanged) {
         pushSnapshot(prev)
       }
@@ -77,7 +79,7 @@ export function useWorkspace() {
   const addField = useCallback((position: { x: number; y: number }) => {
     const field: DialogueField = {
       id: generateId(),
-      label: '新しいフィールド',
+      label: '',
       blocks: [],
       position,
       width: 280,
@@ -101,6 +103,23 @@ export function useWorkspace() {
       connections: ws.connections.filter(
         c => c.sourceFieldId !== id && c.targetFieldId !== id
       ),
+      groups: ws.groups
+        .map(g => ({ ...g, fieldIds: g.fieldIds.filter(fid => fid !== id) }))
+        .filter(g => g.fieldIds.length > 0),
+    }))
+  }, [])
+
+  const removeFields = useCallback((ids: string[]) => {
+    const idSet = new Set(ids)
+    setWorkspace(ws => ({
+      ...ws,
+      fields: ws.fields.filter(f => !idSet.has(f.id)),
+      connections: ws.connections.filter(
+        c => !idSet.has(c.sourceFieldId) && !idSet.has(c.targetFieldId)
+      ),
+      groups: ws.groups
+        .map(g => ({ ...g, fieldIds: g.fieldIds.filter(fid => !idSet.has(fid)) }))
+        .filter(g => g.fieldIds.length > 0),
     }))
   }, [])
 
@@ -200,6 +219,31 @@ export function useWorkspace() {
     }))
   }, [])
 
+  const addGroup = useCallback((fieldIds: string[], name?: string, color?: string) => {
+    const group: FieldGroup = {
+      id: generateId(),
+      name: name || '',
+      color: color || '#c2543a',
+      fieldIds,
+    }
+    setWorkspace(ws => ({ ...ws, groups: [...ws.groups, group] }))
+    return group
+  }, [])
+
+  const updateGroup = useCallback((id: string, updates: Partial<FieldGroup>) => {
+    setWorkspace(ws => ({
+      ...ws,
+      groups: ws.groups.map(g => g.id === id ? { ...g, ...updates } : g),
+    }))
+  }, [])
+
+  const removeGroup = useCallback((id: string) => {
+    setWorkspace(ws => ({
+      ...ws,
+      groups: ws.groups.filter(g => g.id !== id),
+    }))
+  }, [])
+
   const setCharacters = useCallback((characters: Character[]) => {
     setWorkspace(ws => ({ ...ws, characters }))
   }, [])
@@ -290,12 +334,16 @@ export function useWorkspace() {
     addField,
     updateField,
     removeField,
+    removeFields,
     addBlock,
     updateBlock,
     removeBlock,
     moveBlock,
     addConnection,
     removeConnection,
+    addGroup,
+    updateGroup,
+    removeGroup,
     setCharacters,
     setViewport,
     undo,

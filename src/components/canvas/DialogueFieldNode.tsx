@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeResizeControl, type NodeProps } from '@xyflow/react'
 import { DialogueField, Character, DialogueBlock, Connection } from '@/types'
 import { FaceIcon } from '../characters/FaceIcon'
 import { CharacterPicker } from '../characters/CharacterPicker'
@@ -75,8 +75,22 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
   return (
     <div
       className={`card-analog ${selected ? 'selected' : ''}`}
-      style={{ width: f.width, minWidth: 260, minHeight: 60, position: 'relative' }}
+      style={{ width: '100%', minWidth: 260, minHeight: 60, position: 'relative' }}
     >
+      {/* Resize control - right edge */}
+      <NodeResizeControl
+        minWidth={260}
+        maxWidth={800}
+        position="right"
+        className="resize-control-right"
+        style={{ background: 'transparent', border: 'none' }}
+        onResizeEnd={(_event: any, params: any) => {
+          (onUpdateField as any)(f.id, { width: Math.round(params.width) })
+        }}
+      >
+        <div className="resize-handle-visual" />
+      </NodeResizeControl>
+
       {/* Tape strip */}
       <div className="tape" style={{ top: -10, left: 18, width: 64, height: 18 }} />
 
@@ -113,13 +127,15 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
           <span
             className="hand hand-underline"
             style={{
-              flex: 1, fontSize: 18, fontWeight: 600, color: 'var(--ink)',
+              flex: 1, fontSize: 18, fontWeight: 600,
+              color: f.label ? 'var(--ink)' : 'var(--ink-faint)',
+              fontStyle: f.label ? 'normal' : 'italic',
               cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               textAlign: 'center',
             }}
             onDoubleClick={() => setEditingLabel(true)}
           >
-            {f.label}
+            {f.label || 'フィールド名'}
           </span>
         )}
 

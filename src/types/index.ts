@@ -35,6 +35,13 @@ export interface Connection {
   order: number
 }
 
+export interface FieldGroup {
+  id: string
+  name: string
+  color: string
+  fieldIds: string[]
+}
+
 export interface Workspace {
   id: string
   name: string
@@ -43,5 +50,6 @@ export interface Workspace {
   characters: Character[]
   fields: DialogueField[]
   connections: Connection[]
+  groups: FieldGroup[]
   viewport: { x: number; y: number; zoom: number }
 }
