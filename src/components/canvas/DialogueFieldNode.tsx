@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react'
+import { useState, useCallback, useRef, useEffect, type MouseEvent as ReactMouseEvent } from 'react'
 import { Handle, Position, NodeResizeControl, type NodeProps } from '@xyflow/react'
 import { DialogueField, Character, DialogueBlock, Connection } from '@/types'
 import { FaceIcon } from '../characters/FaceIcon'
@@ -42,12 +42,25 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock, onRemoveField, onRemoveConnectionsAt,
   } = data as unknown as DialogueFieldNodeData
 
-  const [editingLabel, setEditingLabel] = useState(false)
-  const focusedBlockIdRef = useRef<string | null>(null)
-  const charMap = new Map((characters as Character[]).map(c => [c.id, c]))
   const f = field as DialogueField
   const chars = characters as Character[]
   const conns = connections as Connection[]
+  const charMap = new Map((characters as Character[]).map(c => [c.id, c]))
+
+  const [editingLabel, setEditingLabel] = useState(false)
+  const [newlyAddedBlockId, setNewlyAddedBlockId] = useState<string | null>(null)
+  const prevBlockCountRef = useRef(f.blocks.length)
+
+  // Auto-focus newly added block
+  useEffect(() => {
+    if (f.blocks.length > prevBlockCountRef.current) {
+      const lastBlock = f.blocks[f.blocks.length - 1]
+      if (lastBlock) {
+        setNewlyAddedBlockId(lastBlock.id)
+      }
+    }
+    prevBlockCountRef.current = f.blocks.length
+  }, [f.blocks.length, f.blocks])
 
   const hasConn = (ht: 'source' | 'target', hid: string) =>
     conns.some(c =>
@@ -188,6 +201,7 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
                       onCtrlEnter={() => (onAddBlock as any)(f.id)}
                       onAltUp={() => switchCharacter(block.id, -1)}
                       onAltDown={() => switchCharacter(block.id, 1)}
+                      autoFocus={block.id === newlyAddedBlockId}
                     />
                   </div>
                   <button

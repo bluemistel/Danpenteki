@@ -12,9 +12,10 @@ interface BlockTextareaProps {
   onCtrlEnter?: () => void
   onAltUp?: () => void
   onAltDown?: () => void
+  autoFocus?: boolean
 }
 
-export function BlockTextarea({ value, onChange, placeholder, rows = 2, className, style, onCtrlEnter, onAltUp, onAltDown }: BlockTextareaProps) {
+export function BlockTextarea({ value, onChange, placeholder, rows = 2, className, style, onCtrlEnter, onAltUp, onAltDown, autoFocus }: BlockTextareaProps) {
   const [localValue, setLocalValue] = useState(value)
   const composingRef = useRef(false)
   const focusedRef = useRef(false)
@@ -23,6 +24,12 @@ export function BlockTextarea({ value, onChange, placeholder, rows = 2, classNam
   const localValueRef = useRef(localValue)
   const callbackRefs = useRef({ onCtrlEnter, onAltUp, onAltDown, onChange })
   callbackRefs.current = { onCtrlEnter, onAltUp, onAltDown, onChange }
+
+  useEffect(() => {
+    if (autoFocus && ref.current) {
+      ref.current.focus()
+    }
+  }, [autoFocus])
 
   useEffect(() => {
     if (!focusedRef.current) {
