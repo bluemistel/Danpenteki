@@ -1,14 +1,20 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { PreviewItem, PreviewFieldGroup } from '@/hooks/usePreview'
 import { FaceIcon } from '../characters/FaceIcon'
-import { Download } from 'lucide-react'
+import { Download, ChevronDown } from 'lucide-react'
+import { DialogueField, Connection, Character } from '@/types'
+import { exportPreviewMarkdown, downloadMarkdown } from '@/lib/exportMarkdown'
 
 interface PreviewPaneProps {
   items: PreviewItem[]
   groups: PreviewFieldGroup[]
   selectedFieldId: string | null
+  fields: DialogueField[]
+  connections: Connection[]
+  characters: Character[]
+  projectName: string
 }
 
 function exportAsCSV(items: PreviewItem[]) {
@@ -23,8 +29,11 @@ function exportAsCSV(items: PreviewItem[]) {
   const a = document.createElement('a')
   a.href = url
   a.download = 'dialogue.csv'
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
-  URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 200)
 }
 
 function renderBranchPrefix(isLastStack: boolean[]): string {
@@ -54,10 +63,35 @@ function TreePrefix({ text }: { text: string }) {
   )
 }
 
-export function PreviewPane({ items, groups, selectedFieldId }: PreviewPaneProps) {
-  const handleExport = useCallback(() => {
-    if (items.length > 0) exportAsCSV(items)
+export function PreviewPane({ items, groups, selectedFieldId, fields, connections, characters, projectName }: PreviewPaneProps) {
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showExportMenu) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showExportMenu])
+
+  const handleExportCSV = useCallback(() => {
+    if (items.length > 0) {
+      exportAsCSV(items)
+    }
+    setTimeout(() => setShowExportMenu(false), 50)
   }, [items])
+
+  const handleExportMarkdown = useCallback(() => {
+    if (selectedFieldId) {
+      const md = exportPreviewMarkdown(selectedFieldId, fields, connections, characters, projectName)
+      downloadMarkdown(md, `${projectName || 'dialogue'}.md`)
+    }
+    setTimeout(() => setShowExportMenu(false), 50)
+  }, [selectedFieldId, fields, connections, characters, projectName])
 
   if (!selectedFieldId) {
     return (
@@ -93,14 +127,44 @@ export function PreviewPane({ items, groups, selectedFieldId }: PreviewPaneProps
         padding: '6px 12px', borderBottom: '1px dashed var(--rule)',
         position: 'relative', zIndex: 2,
       }}>
-        <button onClick={handleExport} className="btn-ghost" style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}>
-          <Download size={12} />
-          エクスポート
-        </button>
+        <div ref={menuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="btn-ghost"
+            style={{ padding: '4px 10px', fontSize: 11, gap: 4 }}
+          >
+            <Download size={12} />
+            エクスポート
+            <ChevronDown size={10} />
+          </button>
+          {showExportMenu && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, marginTop: 4,
+              background: 'var(--paper-2)', border: '1px solid var(--rule)',
+              borderRadius: 8, boxShadow: 'var(--shadow-deep)',
+              minWidth: 140, zIndex: 10, overflow: 'hidden',
+            }}>
+              <button
+                onClick={handleExportCSV}
+                className="btn-ghost"
+                style={{ width: '100%', padding: '8px 12px', fontSize: 12, borderRadius: 0, justifyContent: 'flex-start' }}
+              >
+                CSV
+              </button>
+              <button
+                onClick={handleExportMarkdown}
+                className="btn-ghost"
+                style={{ width: '100%', padding: '8px 12px', fontSize: 12, borderRadius: 0, justifyContent: 'flex-start' }}
+              >
+                Markdown
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Dialogue list with tree */}
-      <div className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 16px', position: 'relative', zIndex: 2 }}>
+      <div className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 16px', position: 'relative', zIndex: 1 }}>
         {groups.map((group, gi) => {
           const branchPrefix = renderBranchPrefix(group.isLastStack)
           const contPrefix = renderContinuationPrefix(group.isLastStack)

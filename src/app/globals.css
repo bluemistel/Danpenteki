@@ -232,6 +232,7 @@ textarea.analog::placeholder, input.analog::placeholder {
 .react-flow__controls-button:hover { background: var(--paper-2) !important; }
 .react-flow__minimap { border-radius: 12px !important; border: 1px solid #d8cdb6 !important; box-shadow: var(--shadow-soft) !important; }
 .react-flow__edge-path { stroke: var(--ink) !important; stroke-width: 1.6 !important; }
+.react-flow__edge.animated path { animation-duration: 0s !important; }
 .react-flow__connection-path { stroke: var(--ink-faint) !important; stroke-width: 1.6 !important; stroke-dasharray: 4 4 !important; }
 
 /* Selection box */

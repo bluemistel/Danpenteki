@@ -9,7 +9,8 @@ import { SplitLayout } from '@/components/shared/SplitLayout'
 import { CharacterManager } from '@/components/characters/CharacterManager'
 import { ProjectManager } from '@/components/projects/ProjectManager'
 import { HelpModal } from '@/components/shared/HelpModal'
-import { Users, Undo2, Redo2, ChevronDown, HelpCircle } from 'lucide-react'
+import { Users, Undo2, Redo2, ChevronDown, HelpCircle, FileDown } from 'lucide-react'
+import { exportFullMarkdown, downloadMarkdown } from '@/lib/exportMarkdown'
 import Image from 'next/image'
 
 export default function Home() {
@@ -148,6 +149,22 @@ export default function Home() {
           キャラクター
         </button>
 
+        <button
+          onClick={() => {
+            const md = exportFullMarkdown(
+              workspace.fields, workspace.connections,
+              workspace.characters, workspace.groups, workspace.name
+            )
+            downloadMarkdown(md, `${workspace.name || 'project'}.md`)
+          }}
+          className="btn-ghost"
+          style={{ padding: '5px 12px', fontSize: 12, gap: 5 }}
+          title="プロジェクト全体をMarkdownでエクスポート"
+        >
+          <FileDown size={14} />
+          MD出力
+        </button>
+
         {/* Help button */}
         <button
           onClick={() => setShowHelp(true)}
@@ -192,7 +209,15 @@ export default function Home() {
             </div>
           }
           right={
-            <PreviewPane items={previewItems} groups={previewGroups} selectedFieldId={selectedFieldId} />
+            <PreviewPane
+              items={previewItems}
+              groups={previewGroups}
+              selectedFieldId={selectedFieldId}
+              fields={workspace.fields}
+              connections={workspace.connections}
+              characters={workspace.characters}
+              projectName={workspace.name}
+            />
           }
         />
       </div>
