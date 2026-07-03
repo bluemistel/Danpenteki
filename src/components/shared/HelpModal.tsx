@@ -120,7 +120,14 @@ interface UpdateEntry {
 
 const updates: UpdateEntry[] = [
   {
-    date: '2025/05/27',
+    date: '2026/07/04',
+    version: 'v1.0.3',
+    items: [
+      '接続点とノードが見た目通りに接続されていない不具合を修正'
+    ],
+  },
+  {
+    date: '2026/05/27',
     version: 'v1.0.2',
     items: [
       'Markdown + Mermaid形式でのエクスポートに対応',
@@ -128,7 +135,7 @@ const updates: UpdateEntry[] = [
     ],
   },
   {
-    date: '2025/05/26',
+    date: '2026/05/26',
     version: 'v1.0.1',
     items: [
       '矩形範囲選択・複数フィールドの一括移動に対応',
@@ -138,7 +145,7 @@ const updates: UpdateEntry[] = [
     ],
   },
   {
-    date: '2025/05/25',
+    date: '2026/05/25',
     version: 'v1.0.0',
     items: [
       '初回リリース',

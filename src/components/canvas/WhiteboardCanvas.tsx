@@ -321,17 +321,35 @@ function WhiteboardCanvasInner({
       const target = (event as MouseEvent).target as HTMLElement
       if (target.closest('.react-flow__node')) return
 
-      const position = screenToFlowPosition({
+      const dropPos = screenToFlowPosition({
         x: (event as MouseEvent).clientX,
         y: (event as MouseEvent).clientY,
       })
+
+      const defaultWidth = 280
+      // Determine which target handle the new node should receive the connection on,
+      // then offset so that handle aligns with the drop point
+      const sourceHandle = source.handleId || 'bottom'
+      let targetHandle: string
+      let position: { x: number; y: number }
+
+      if (sourceHandle === 'right-source') {
+        targetHandle = 'left-target'
+        position = { x: dropPos.x, y: dropPos.y - 40 }
+      } else if (sourceHandle === 'bottom') {
+        targetHandle = 'top'
+        position = { x: dropPos.x - defaultWidth / 2, y: dropPos.y }
+      } else {
+        targetHandle = 'top'
+        position = { x: dropPos.x - defaultWidth / 2, y: dropPos.y }
+      }
 
       const newField = onAddField(position)
       onAddConnection({
         sourceFieldId: source.nodeId,
         targetFieldId: newField.id,
-        sourceHandle: source.handleId || 'bottom',
-        targetHandle: 'top',
+        sourceHandle,
+        targetHandle,
       })
     },
     [onAddField, onAddConnection, screenToFlowPosition]
