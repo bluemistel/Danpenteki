@@ -20,6 +20,7 @@ export default function Home() {
     addBlock, updateBlock, removeBlock, moveBlock,
     addConnection, removeConnection,
     addGroup, updateGroup, removeGroup,
+    addMemo, updateMemo, removeMemo,
     setCharacters, setViewport,
     undo, redo, canUndo, canRedo,
     renameWorkspace, switchWorkspace, createWorkspace, deleteProject, listProjects,
@@ -189,6 +190,7 @@ export default function Home() {
                 connections={workspace.connections}
                 characters={workspace.characters}
                 groups={workspace.groups}
+                memos={workspace.memos}
                 selectedFieldId={selectedFieldId}
                 onSelectField={setSelectedFieldId}
                 onUpdateField={updateField}
@@ -203,6 +205,9 @@ export default function Home() {
                 onAddGroup={addGroup}
                 onUpdateGroup={updateGroup}
                 onRemoveGroup={removeGroup}
+                onAddMemo={addMemo}
+                onUpdateMemo={updateMemo}
+                onRemoveMemo={removeMemo}
                 onViewportChange={setViewport}
                 onSelectionChange={setSelectedFieldIds}
               />

@@ -35,6 +35,14 @@ export interface Connection {
   order: number
 }
 
+export interface Memo {
+  id: string
+  text: string
+  color: string
+  position: { x: number; y: number }
+  width: number
+}
+
 export interface FieldGroup {
   id: string
   name: string
@@ -51,5 +59,6 @@ export interface Workspace {
   fields: DialogueField[]
   connections: Connection[]
   groups: FieldGroup[]
+  memos: Memo[]
   viewport: { x: number; y: number; zoom: number }
 }

@@ -40,6 +40,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
 
 function migrateWorkspace(ws: Workspace): Workspace {
   if (!ws.groups) (ws as any).groups = []
+  if (!ws.memos) (ws as any).memos = []
   return ws
 }
 

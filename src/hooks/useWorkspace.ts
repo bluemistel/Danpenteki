@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Workspace, DialogueField, DialogueBlock, Connection, Character, FieldGroup } from '@/types'
+import { Workspace, DialogueField, DialogueBlock, Connection, Character, FieldGroup, Memo } from '@/types'
 import { generateId } from '@/lib/id'
 import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs } from '@/lib/storage'
 import { useUndoRedo } from './useUndoRedo'
@@ -18,6 +18,7 @@ function createNewWorkspace(name = '新しいプロジェクト'): Workspace {
     fields: [],
     connections: [],
     groups: [],
+    memos: [],
     viewport: { x: 0, y: 0, zoom: 1 },
   }
 }
@@ -56,7 +57,8 @@ export function useWorkspace() {
         prev.fields !== workspace.fields ||
         prev.connections !== workspace.connections ||
         prev.characters !== workspace.characters ||
-        prev.groups !== workspace.groups
+        prev.groups !== workspace.groups ||
+        prev.memos !== workspace.memos
       if (dataChanged) {
         pushSnapshot(prev)
       }
@@ -244,6 +246,32 @@ export function useWorkspace() {
     }))
   }, [])
 
+  const addMemo = useCallback((position: { x: number; y: number }, color?: string) => {
+    const memo: Memo = {
+      id: generateId(),
+      text: '',
+      color: color || '#f5edd4',
+      position,
+      width: 200,
+    }
+    setWorkspace(ws => ({ ...ws, memos: [...ws.memos, memo] }))
+    return memo
+  }, [])
+
+  const updateMemo = useCallback((id: string, updates: Partial<Memo>) => {
+    setWorkspace(ws => ({
+      ...ws,
+      memos: ws.memos.map(m => (m.id === id ? { ...m, ...updates } : m)),
+    }))
+  }, [])
+
+  const removeMemo = useCallback((id: string) => {
+    setWorkspace(ws => ({
+      ...ws,
+      memos: ws.memos.filter(m => m.id !== id),
+    }))
+  }, [])
+
   const setCharacters = useCallback((characters: Character[]) => {
     setWorkspace(ws => ({ ...ws, characters }))
   }, [])
@@ -344,6 +372,9 @@ export function useWorkspace() {
     addGroup,
     updateGroup,
     removeGroup,
+    addMemo,
+    updateMemo,
+    removeMemo,
     setCharacters,
     setViewport,
     undo,

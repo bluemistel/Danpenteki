@@ -23,13 +23,16 @@ import {
 import '@xyflow/react/dist/style.css'
 import { DialogueFieldNode, DialogueFieldNodeData } from './DialogueFieldNode'
 import { GroupNode, GroupNodeData } from './GroupNode'
+import { MemoNode, MemoNodeData } from './MemoNode'
 import { SelectionToolbar } from './SelectionToolbar'
-import { DialogueField, Character, Connection, DialogueBlock, FieldGroup } from '@/types'
+import { CanvasContextMenu } from './CanvasContextMenu'
+import { DialogueField, Character, Connection, DialogueBlock, FieldGroup, Memo } from '@/types'
 import { hasCycle } from '@/lib/graph'
 
 const nodeTypes: NodeTypes = {
   dialogueField: DialogueFieldNode as any,
   fieldGroup: GroupNode as any,
+  memo: MemoNode as any,
 }
 
 interface WhiteboardCanvasProps {
@@ -37,6 +40,7 @@ interface WhiteboardCanvasProps {
   connections: Connection[]
   characters: Character[]
   groups: FieldGroup[]
+  memos: Memo[]
   selectedFieldId: string | null
   onSelectField: (id: string | null) => void
   onUpdateField: (id: string, updates: Partial<DialogueField>) => void
@@ -51,6 +55,9 @@ interface WhiteboardCanvasProps {
   onAddGroup: (fieldIds: string[], name?: string, color?: string) => FieldGroup
   onUpdateGroup: (id: string, updates: Partial<FieldGroup>) => void
   onRemoveGroup: (id: string) => void
+  onAddMemo: (position: { x: number; y: number }, color?: string) => Memo
+  onUpdateMemo: (id: string, updates: Partial<Memo>) => void
+  onRemoveMemo: (id: string) => void
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void
   onSelectionChange?: (fieldIds: string[]) => void
 }
@@ -60,6 +67,7 @@ function WhiteboardCanvasInner({
   connections,
   characters,
   groups,
+  memos,
   selectedFieldId,
   onSelectField,
   onUpdateField,
@@ -74,12 +82,16 @@ function WhiteboardCanvasInner({
   onAddGroup,
   onUpdateGroup,
   onRemoveGroup,
+  onAddMemo,
+  onUpdateMemo,
+  onRemoveMemo,
   onViewportChange,
   onSelectionChange,
 }: WhiteboardCanvasProps) {
   const { screenToFlowPosition, getNodes } = useReactFlow()
   const connectingFrom = useRef<{ nodeId: string; handleId: string | null } | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; flowPos: { x: number; y: number } } | null>(null)
 
   const onRemoveConnectionsAt = useCallback(
     (fieldId: string, handleType: 'source' | 'target', handleId: string) => {
@@ -102,10 +114,12 @@ function WhiteboardCanvasInner({
   const cbRef = useRef({
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
     onRemoveField, onRemoveConnectionsAt, onUpdateGroup, onRemoveGroup,
+    onUpdateMemo, onRemoveMemo,
   })
   cbRef.current = {
     onUpdateField, onAddBlock, onUpdateBlock, onRemoveBlock,
     onRemoveField, onRemoveConnectionsAt, onUpdateGroup, onRemoveGroup,
+    onUpdateMemo, onRemoveMemo,
   }
 
   const stableCallbacks = useMemo(() => ({
@@ -117,6 +131,8 @@ function WhiteboardCanvasInner({
     onRemoveConnectionsAt: (...args: Parameters<typeof onRemoveConnectionsAt>) => cbRef.current.onRemoveConnectionsAt(...args),
     onUpdateGroup: (...args: Parameters<typeof onUpdateGroup>) => cbRef.current.onUpdateGroup(...args),
     onRemoveGroup: (...args: Parameters<typeof onRemoveGroup>) => cbRef.current.onRemoveGroup(...args),
+    onUpdateMemo: (...args: Parameters<typeof onUpdateMemo>) => cbRef.current.onUpdateMemo(...args),
+    onRemoveMemo: (...args: Parameters<typeof onRemoveMemo>) => cbRef.current.onRemoveMemo(...args),
   }), [])
 
   const [nodes, setNodes] = useState<Node[]>([])
@@ -217,10 +233,41 @@ function WhiteboardCanvasInner({
         } as Node
       }).filter(Boolean)
 
-      return [...groupNodes, ...fieldNodes]
+      // Build memo nodes
+      const memoNodes: Node[] = memos.map(memo => {
+        const memoId = `memo-${memo.id}`
+        const existing = prevMap.get(memoId)
+        const newData: MemoNodeData = {
+          memo,
+          ...stableCallbacks,
+        }
+        if (existing) {
+          if (existing.data === newData && (existing.style as any)?.width === memo.width) {
+            if ((existing.style as any)?.height != null) {
+              return { ...existing, style: { ...existing.style, height: undefined } }
+            }
+            return existing
+          }
+          return {
+            ...existing,
+            style: { ...existing.style, width: memo.width, height: undefined },
+            data: newData,
+          }
+        }
+        return {
+          id: memoId,
+          type: 'memo' as const,
+          position: memo.position,
+          style: { width: memo.width },
+          connectable: false,
+          data: newData,
+        }
+      })
+
+      return [...groupNodes, ...memoNodes, ...fieldNodes]
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, nodeDataMap, groups, stableCallbacks, getNodes])
+  }, [fields, nodeDataMap, groups, memos, stableCallbacks, getNodes])
 
   const edges: Edge[] = useMemo(
     () =>
@@ -242,9 +289,9 @@ function WhiteboardCanvasInner({
     (changes: NodeChange[]) => {
       setNodes(nds => applyNodeChanges(changes, nds))
 
-      // Track primary selection for preview
+      // Track primary selection for preview (skip group and memo nodes)
       for (const change of changes) {
-        if (change.type === 'select' && change.selected && !change.id.startsWith('group-')) {
+        if (change.type === 'select' && change.selected && !change.id.startsWith('group-') && !change.id.startsWith('memo-')) {
           onSelectField(change.id)
         }
       }
@@ -267,12 +314,16 @@ function WhiteboardCanvasInner({
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
       for (const n of draggedNodes) {
-        if (!n.id.startsWith('group-')) {
+        if (n.id.startsWith('group-')) continue
+        if (n.id.startsWith('memo-')) {
+          const memoId = n.id.replace('memo-', '')
+          onUpdateMemo(memoId, { position: n.position })
+        } else {
           onUpdateField(n.id, { position: n.position })
         }
       }
     },
-    [onUpdateField]
+    [onUpdateField, onUpdateMemo]
   )
 
   const onEdgesChange: OnEdgesChange = useCallback(
@@ -361,6 +412,7 @@ function WhiteboardCanvasInner({
   const onPaneClick = useCallback(() => {
     onSelectField(null)
     setSelectedIds([])
+    setContextMenu(null)
   }, [onSelectField])
 
   const onDoubleClick = useCallback(
@@ -392,8 +444,50 @@ function WhiteboardCanvasInner({
     [onRemoveFields]
   )
 
+  // Right-click: short press → context menu, drag → pan
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const rightClickStart = useRef<{ x: number; y: number; time: number } | null>(null)
+
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 2) {
+        rightClickStart.current = { x: e.clientX, y: e.clientY, time: Date.now() }
+      }
+    }
+
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      const start = rightClickStart.current
+      rightClickStart.current = null
+      if (!start) return
+
+      const dx = e.clientX - start.x
+      const dy = e.clientY - start.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const elapsed = Date.now() - start.time
+
+      if (dist > 5 || elapsed > 300) return
+
+      const target = e.target as HTMLElement
+      if (target.closest('.react-flow__node')) return
+
+      const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+      setContextMenu({ x: e.clientX, y: e.clientY, flowPos })
+    }
+
+    el.addEventListener('mousedown', onMouseDown, true)
+    el.addEventListener('contextmenu', onContextMenu, true)
+    return () => {
+      el.removeEventListener('mousedown', onMouseDown, true)
+      el.removeEventListener('contextmenu', onContextMenu, true)
+    }
+  }, [screenToFlowPosition])
+
   return (
-    <div className="w-full h-full" style={{ position: 'relative' }}>
+    <div ref={wrapperRef} className="w-full h-full" style={{ position: 'relative' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -423,7 +517,11 @@ function WhiteboardCanvasInner({
         <MiniMap
           pannable
           zoomable
-          nodeColor={(node) => node.id.startsWith('group-') ? 'transparent' : 'var(--ink-faint)'}
+          nodeColor={(node) => {
+            if (node.id.startsWith('group-')) return 'transparent'
+            if (node.id.startsWith('memo-')) return '#e8d97f'
+            return 'var(--ink-faint)'
+          }}
           maskColor="rgba(40,30,15,0.06)"
           style={{ background: 'var(--paper-2)', border: '1px solid #d8cdb6', borderRadius: 12 }}
         />
@@ -433,6 +531,15 @@ function WhiteboardCanvasInner({
         onCreateGroup={handleCreateGroup}
         onDeleteSelected={handleDeleteSelected}
       />
+      {contextMenu && (
+        <CanvasContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onAddField={() => onAddField(contextMenu.flowPos)}
+          onAddMemo={() => onAddMemo(contextMenu.flowPos)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   )
 }
