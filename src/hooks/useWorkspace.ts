@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Workspace, DialogueField, DialogueBlock, Connection, Character, FieldGroup, Memo } from '@/types'
 import { generateId } from '@/lib/id'
-import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs } from '@/lib/storage'
+import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs, saveImage, deleteImage } from '@/lib/storage'
 import { useUndoRedo } from './useUndoRedo'
 
 const LAST_WS_KEY = 'danpenteki-last-workspace'
@@ -258,6 +258,21 @@ export function useWorkspace() {
     return memo
   }, [])
 
+  const addMemoWithImage = useCallback(async (position: { x: number; y: number }, blob: Blob) => {
+    const imageId = generateId()
+    await saveImage(imageId, blob)
+    const memo: Memo = {
+      id: generateId(),
+      text: '',
+      color: '#f5edd4',
+      position,
+      width: 240,
+      imageId,
+    }
+    setWorkspace(ws => ({ ...ws, memos: [...ws.memos, memo] }))
+    return memo
+  }, [])
+
   const updateMemo = useCallback((id: string, updates: Partial<Memo>) => {
     setWorkspace(ws => ({
       ...ws,
@@ -266,10 +281,13 @@ export function useWorkspace() {
   }, [])
 
   const removeMemo = useCallback((id: string) => {
-    setWorkspace(ws => ({
-      ...ws,
-      memos: ws.memos.filter(m => m.id !== id),
-    }))
+    setWorkspace(ws => {
+      const memo = ws.memos.find(m => m.id === id)
+      if (memo?.imageId) {
+        deleteImage(memo.imageId)
+      }
+      return { ...ws, memos: ws.memos.filter(m => m.id !== id) }
+    })
   }, [])
 
   const setCharacters = useCallback((characters: Character[]) => {
@@ -373,6 +391,7 @@ export function useWorkspace() {
     updateGroup,
     removeGroup,
     addMemo,
+    addMemoWithImage,
     updateMemo,
     removeMemo,
     setCharacters,

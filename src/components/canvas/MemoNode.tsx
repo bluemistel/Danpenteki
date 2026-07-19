@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { NodeResizeControl, type NodeProps } from '@xyflow/react'
 import { Memo } from '@/types'
-import { X } from 'lucide-react'
+import { loadImage, saveImage, deleteImage } from '@/lib/storage'
+import { generateId } from '@/lib/id'
+import { X, ImageIcon } from 'lucide-react'
 
 const MEMO_COLORS = [
   { name: 'Gold', value: '#f5edd4', border: '#d9cc9e', accent: '#b89530' },
@@ -25,10 +27,31 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [localText, setLocalText] = useState(memo.text)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
 
   useEffect(() => {
     setLocalText(memo.text)
   }, [memo.text])
+
+  // Load image from IndexedDB
+  useEffect(() => {
+    if (!memo.imageId) {
+      setImageUrl(null)
+      return
+    }
+    let revoke: string | null = null
+    loadImage(memo.imageId).then(blob => {
+      if (blob) {
+        const url = URL.createObjectURL(blob)
+        revoke = url
+        setImageUrl(url)
+      }
+    })
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke)
+    }
+  }, [memo.imageId])
 
   const saveText = useCallback((text: string) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current)
@@ -43,28 +66,81 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
     saveText(text)
   }, [saveText])
 
+  const handleImageFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const imageId = generateId()
+    await saveImage(imageId, file)
+    if (memo.imageId) {
+      await deleteImage(memo.imageId)
+    }
+    ;(onUpdateMemo as any)(memo.id, { imageId })
+  }, [memo.id, memo.imageId, onUpdateMemo])
+
+  const handleRemoveImage = useCallback(async () => {
+    if (memo.imageId) {
+      await deleteImage(memo.imageId)
+      ;(onUpdateMemo as any)(memo.id, { imageId: undefined })
+    }
+  }, [memo.id, memo.imageId, onUpdateMemo])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleImageFile(file)
+  }, [handleImageFile])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+  }, [])
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault()
+        const file = items[i].getAsFile()
+        if (file) handleImageFile(file)
+        return
+      }
+    }
+  }, [handleImageFile])
+
   const colorInfo = MEMO_COLORS.find(c => c.value === memo.color) || MEMO_COLORS[0]
 
   return (
     <div
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       style={{
         width: '100%',
         minWidth: 120,
         minHeight: 80,
         position: 'relative',
         background: colorInfo.value,
-        border: `1px solid ${colorInfo.border}`,
+        border: dragOver
+          ? `2px dashed ${colorInfo.accent}`
+          : `1px solid ${colorInfo.border}`,
         borderRadius: 4,
         boxShadow: selected
           ? `0 0 0 2px var(--ink), 0 4px 12px -4px rgba(40,30,15,0.35)`
           : '0 2px 6px -2px rgba(40,30,15,0.25), 0 1px 2px rgba(40,30,15,0.10)',
-        transition: 'box-shadow 0.15s',
+        transition: 'box-shadow 0.15s, border 0.15s',
       }}
     >
       {/* Resize control */}
       <NodeResizeControl
         minWidth={120}
-        maxWidth={400}
+        maxWidth={600}
         position="right"
         className="resize-control-right"
         style={{ background: 'transparent', border: 'none' }}
@@ -119,12 +195,57 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
         </button>
       </div>
 
+      {/* Image */}
+      {imageUrl && (
+        <div className="nodrag nowheel" style={{ padding: '4px 10px 0', position: 'relative' }}>
+          <img
+            src={imageUrl}
+            alt=""
+            style={{
+              width: '100%',
+              borderRadius: 3,
+              display: 'block',
+              boxShadow: '0 1px 3px rgba(40,30,15,0.15)',
+            }}
+          />
+          <button
+            onClick={handleRemoveImage}
+            title="画像を削除"
+            style={{
+              position: 'absolute', top: 8, right: 14,
+              background: 'rgba(0,0,0,0.5)', border: 'none',
+              borderRadius: '50%', width: 20, height: 20,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#fff',
+              opacity: 0.7, transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Drop hint when no image */}
+      {!imageUrl && dragOver && (
+        <div style={{
+          padding: '12px 10px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 6, color: colorInfo.accent, fontSize: 12,
+        }}>
+          <ImageIcon size={16} />
+          <span>画像をドロップ</span>
+        </div>
+      )}
+
       {/* Text area */}
       <div
         className="nodrag nowheel nopan"
         style={{ padding: '4px 10px 10px' }}
         onKeyDown={e => e.stopPropagation()}
         onKeyUp={e => e.stopPropagation()}
+        onPaste={handlePaste}
       >
         <textarea
           ref={textareaRef}

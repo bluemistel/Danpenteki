@@ -20,7 +20,7 @@ export default function Home() {
     addBlock, updateBlock, removeBlock, moveBlock,
     addConnection, removeConnection,
     addGroup, updateGroup, removeGroup,
-    addMemo, updateMemo, removeMemo,
+    addMemo, addMemoWithImage, updateMemo, removeMemo,
     setCharacters, setViewport,
     undo, redo, canUndo, canRedo,
     renameWorkspace, switchWorkspace, createWorkspace, deleteProject, listProjects,
@@ -206,6 +206,7 @@ export default function Home() {
                 onUpdateGroup={updateGroup}
                 onRemoveGroup={removeGroup}
                 onAddMemo={addMemo}
+                onAddMemoWithImage={addMemoWithImage}
                 onUpdateMemo={updateMemo}
                 onRemoveMemo={removeMemo}
                 onViewportChange={setViewport}

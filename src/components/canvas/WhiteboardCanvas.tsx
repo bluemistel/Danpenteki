@@ -56,6 +56,7 @@ interface WhiteboardCanvasProps {
   onUpdateGroup: (id: string, updates: Partial<FieldGroup>) => void
   onRemoveGroup: (id: string) => void
   onAddMemo: (position: { x: number; y: number }, color?: string) => Memo
+  onAddMemoWithImage: (position: { x: number; y: number }, blob: Blob) => Promise<Memo>
   onUpdateMemo: (id: string, updates: Partial<Memo>) => void
   onRemoveMemo: (id: string) => void
   onViewportChange: (viewport: { x: number; y: number; zoom: number }) => void
@@ -83,6 +84,7 @@ function WhiteboardCanvasInner({
   onUpdateGroup,
   onRemoveGroup,
   onAddMemo,
+  onAddMemoWithImage,
   onUpdateMemo,
   onRemoveMemo,
   onViewportChange,
@@ -486,8 +488,58 @@ function WhiteboardCanvasInner({
     }
   }, [screenToFlowPosition])
 
+  // Image drop on canvas
+  const handleCanvasDrop = useCallback((e: React.DragEvent) => {
+    const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'))
+    if (!file) return
+    e.preventDefault()
+    const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    onAddMemoWithImage(flowPos, file)
+  }, [screenToFlowPosition, onAddMemoWithImage])
+
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    if (Array.from(e.dataTransfer.types).includes('Files')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    }
+  }, [])
+
+  // Image paste on canvas (skip if a text input is focused — MemoNode handles its own paste)
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const activeEl = document.activeElement
+      if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) return
+
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          e.preventDefault()
+          const file = items[i].getAsFile()
+          if (!file) return
+          const el = wrapperRef.current
+          if (!el) return
+          const rect = el.getBoundingClientRect()
+          const centerX = rect.left + rect.width / 2
+          const centerY = rect.top + rect.height / 2
+          const flowPos = screenToFlowPosition({ x: centerX, y: centerY })
+          onAddMemoWithImage(flowPos, file)
+          return
+        }
+      }
+    }
+    window.addEventListener('paste', handler)
+    return () => window.removeEventListener('paste', handler)
+  }, [screenToFlowPosition, onAddMemoWithImage])
+
   return (
-    <div ref={wrapperRef} className="w-full h-full" style={{ position: 'relative' }}>
+    <div
+      ref={wrapperRef}
+      className="w-full h-full"
+      style={{ position: 'relative' }}
+      onDrop={handleCanvasDrop}
+      onDragOver={handleCanvasDragOver}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

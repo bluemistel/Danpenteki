@@ -41,6 +41,7 @@ export interface Memo {
   color: string
   position: { x: number; y: number }
   width: number
+  imageId?: string
 }
 
 export interface FieldGroup {

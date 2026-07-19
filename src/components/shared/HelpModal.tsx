@@ -121,6 +121,13 @@ interface UpdateEntry {
 
 const updates: UpdateEntry[] = [
   {
+    date: '2026/07/20',
+    version: 'v1.0.5',
+    items: [
+      '付箋メモに画像添付機能を追加',
+    ],
+  },
+  {
     date: '2026/07/18',
     version: 'v1.0.4',
     items: [
