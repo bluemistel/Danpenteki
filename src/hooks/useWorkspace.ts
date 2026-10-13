@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Workspace, DialogueField, DialogueBlock, Connection, Character, FieldGroup, Memo } from '@/types'
 import { generateId } from '@/lib/id'
-import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs, saveImage, deleteImage } from '@/lib/storage'
+import { saveWorkspace, loadWorkspace, listWorkspaces as listWs, deleteWorkspace as deleteWs, saveImage, loadImage, deleteImage } from '@/lib/storage'
 import { useUndoRedo } from './useUndoRedo'
 
 const LAST_WS_KEY = 'danpenteki-last-workspace'
@@ -317,9 +317,15 @@ export function useWorkspace() {
     }
   }, [workspace, redoSnap])
 
-  const renameWorkspace = useCallback((name: string) => {
-    setWorkspace(ws => ({ ...ws, name }))
-  }, [])
+  const renameWorkspace = useCallback(async (id: string, name: string) => {
+    if (id === workspace.id) {
+      setWorkspace(ws => ({ ...ws, name }))
+      return
+    }
+    // 表示中でないプロジェクトはストレージ上のデータを直接更新する
+    const ws = await loadWorkspace(id)
+    if (ws) await saveWorkspace({ ...ws, name, updatedAt: Date.now() })
+  }, [workspace.id])
 
   const switchWorkspace = useCallback(async (id: string) => {
     if (saveTimeout.current) {
@@ -370,6 +376,33 @@ export function useWorkspace() {
     }
   }, [workspace.id, clearHistory])
 
+  const duplicateProject = useCallback(async (id: string) => {
+    const source = id === workspace.id ? workspace : await loadWorkspace(id)
+    if (!source) return
+    const now = Date.now()
+    const copy: Workspace = {
+      ...structuredClone(source),
+      id: generateId(),
+      name: `${source.name} のコピー`,
+      createdAt: now,
+      updatedAt: now,
+    }
+    // メモ画像は削除時に共有元まで消えないよう、新しいIDで複製する
+    for (const memo of copy.memos) {
+      if (!memo.imageId) continue
+      const blob = await loadImage(memo.imageId)
+      if (blob) {
+        const imageId = generateId()
+        await saveImage(imageId, blob)
+        memo.imageId = imageId
+      } else {
+        memo.imageId = undefined
+      }
+    }
+    await saveWorkspace(copy)
+    return copy
+  }, [workspace])
+
   const listProjects = useCallback(async () => {
     return listWs()
   }, [])
@@ -404,6 +437,7 @@ export function useWorkspace() {
     switchWorkspace,
     createWorkspace,
     deleteProject,
+    duplicateProject,
     listProjects,
   }
 }

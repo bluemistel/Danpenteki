@@ -15,6 +15,8 @@ const MEMO_COLORS = [
   { name: 'Plum', value: '#eddcec', border: '#d4b8d2', accent: '#7c4a7a' },
 ]
 
+const FOLD = 16
+
 export interface MemoNodeData {
   memo: Memo
   onUpdateMemo: (id: string, updates: Partial<Memo>) => void
@@ -116,6 +118,11 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
 
   const colorInfo = MEMO_COLORS.find(c => c.value === memo.color) || MEMO_COLORS[0]
 
+  // 左上を切り取った形状のため box-shadow ではなく drop-shadow で影・選択枠を描く
+  const shadowFilter = selected
+    ? 'drop-shadow(2px 0 0 var(--ink)) drop-shadow(-2px 0 0 var(--ink)) drop-shadow(0 2px 0 var(--ink)) drop-shadow(0 -2px 0 var(--ink)) drop-shadow(0 4px 6px rgba(40,30,15,0.30))'
+    : 'drop-shadow(0 2px 3px rgba(40,30,15,0.22)) drop-shadow(0 1px 1px rgba(40,30,15,0.10))'
+
   return (
     <div
       onDrop={handleDrop}
@@ -124,54 +131,48 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
       style={{
         width: '100%',
         minWidth: 120,
-        minHeight: 80,
         position: 'relative',
+        filter: shadowFilter,
+        transition: 'filter 0.15s',
+      }}
+    >
+      {/* Paper body (top-left corner cut off) */}
+      <div style={{
+        minHeight: 80,
         background: colorInfo.value,
         border: dragOver
           ? `2px dashed ${colorInfo.accent}`
           : `1px solid ${colorInfo.border}`,
         borderRadius: 4,
-        boxShadow: selected
-          ? `0 0 0 2px var(--ink), 0 4px 12px -4px rgba(40,30,15,0.35)`
-          : '0 2px 6px -2px rgba(40,30,15,0.25), 0 1px 2px rgba(40,30,15,0.10)',
-        transition: 'box-shadow 0.15s, border 0.15s',
-      }}
-    >
-      {/* Resize control */}
-      <NodeResizeControl
-        minWidth={120}
-        maxWidth={600}
-        position="right"
-        className="resize-control-right"
-        style={{ background: 'transparent', border: 'none' }}
-        onResizeEnd={(_event: any, params: any) => {
-          ;(onUpdateMemo as any)(memo.id, { width: Math.round(params.width) })
-        }}
-      >
-        <div className="resize-handle-visual" />
-      </NodeResizeControl>
+        clipPath: `polygon(${FOLD}px 0, 100% 0, 100% 100%, 0 100%, 0 ${FOLD}px)`,
+        transition: 'border 0.15s',
+      }}>
 
-      {/* Fold effect - top left corner */}
+      {/* Folded flap - top left corner */}
       <div style={{
         position: 'absolute', top: 0, left: 0,
-        width: 16, height: 16,
-        background: `linear-gradient(135deg, var(--paper-0) 50%, ${colorInfo.border} 50%)`,
-        borderRadius: '0 0 4px 0',
+        width: FOLD, height: FOLD,
+        background: `linear-gradient(135deg, ${colorInfo.border} 50%, ${colorInfo.value} 100%)`,
+        clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
+        borderBottomRightRadius: 3,
+        boxShadow: 'inset -1px -1px 2px rgba(40,30,15,0.12)',
         zIndex: 1,
+        pointerEvents: 'none',
       }} />
 
-      {/* Header bar with color dots and close */}
+      {/* Header bar (drag handle) with color dots and close */}
       <div
-        className="nodrag nowheel"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          padding: '4px 6px 0',
+          padding: '5px 6px 3px',
           gap: 3,
+          cursor: 'grab',
         }}
       >
         {MEMO_COLORS.map(c => (
           <button
             key={c.value}
+            className="nodrag"
             onClick={() => (onUpdateMemo as any)(memo.id, { color: c.value })}
             title={c.name}
             style={{
@@ -183,6 +184,7 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
           />
         ))}
         <button
+          className="nodrag"
           onClick={() => (onRemoveMemo as any)(memo.id)}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -269,6 +271,22 @@ function MemoNodeComponent({ data, selected }: NodeProps) {
           rows={3}
         />
       </div>
+      </div>
+
+      {/* Resize control (outside the clipped body so it isn't cut off) */}
+      <NodeResizeControl
+        minWidth={120}
+        maxWidth={600}
+        position="right"
+        resizeDirection="horizontal"
+        className="resize-control-right"
+        style={{ background: 'transparent', border: 'none' }}
+        onResizeEnd={(_event: any, params: any) => {
+          ;(onUpdateMemo as any)(memo.id, { width: Math.round(params.width) })
+        }}
+      >
+        <div className="resize-handle-visual" />
+      </NodeResizeControl>
     </div>
   )
 }

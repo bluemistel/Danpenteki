@@ -166,13 +166,15 @@ function WhiteboardCanvasInner({
           // Only update data and style width, keep everything else (selected, position, measured, etc.)
           const newData = nodeDataMap.get(field.id)!
           if (existing.data === newData && (existing.style as any)?.width === field.width) {
-            if ((existing.style as any)?.height != null) {
-              return { ...existing, style: { ...existing.style, height: undefined } }
+            if ((existing.style as any)?.height != null || existing.height != null) {
+              return { ...existing, height: undefined, style: { ...existing.style, height: undefined } }
             }
             return existing // No change, reuse same object
           }
           return {
             ...existing,
+            width: undefined,
+            height: undefined,
             style: { ...existing.style, width: field.width, height: undefined },
             data: newData,
           }
@@ -245,13 +247,15 @@ function WhiteboardCanvasInner({
         }
         if (existing) {
           if (existing.data === newData && (existing.style as any)?.width === memo.width) {
-            if ((existing.style as any)?.height != null) {
-              return { ...existing, style: { ...existing.style, height: undefined } }
+            if ((existing.style as any)?.height != null || existing.height != null) {
+              return { ...existing, height: undefined, style: { ...existing.style, height: undefined } }
             }
             return existing
           }
           return {
             ...existing,
+            width: undefined,
+            height: undefined,
             style: { ...existing.style, width: memo.width, height: undefined },
             data: newData,
           }

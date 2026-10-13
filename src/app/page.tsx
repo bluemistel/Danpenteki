@@ -23,7 +23,7 @@ export default function Home() {
     addMemo, addMemoWithImage, updateMemo, removeMemo,
     setCharacters, setViewport,
     undo, redo, canUndo, canRedo,
-    renameWorkspace, switchWorkspace, createWorkspace, deleteProject, listProjects,
+    renameWorkspace, switchWorkspace, createWorkspace, deleteProject, duplicateProject, listProjects,
   } = useWorkspace()
 
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
@@ -242,6 +242,7 @@ export default function Home() {
           onSwitch={switchWorkspace}
           onCreate={createWorkspace}
           onDelete={deleteProject}
+          onDuplicate={duplicateProject}
           onRename={renameWorkspace}
           onList={listProjects}
           onClose={() => setShowProjectManager(false)}

@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Workspace } from '@/types'
-import { X, Plus, Trash2, Pencil, Check } from 'lucide-react'
+import { X, Plus, Trash2, Pencil, Check, Copy } from 'lucide-react'
 
 interface ProjectManagerProps {
   currentId: string
   onSwitch: (id: string) => Promise<void>
   onCreate: () => Promise<Workspace>
   onDelete: (id: string) => Promise<void>
-  onRename: (name: string) => void
+  onDuplicate: (id: string) => Promise<Workspace | undefined>
+  onRename: (id: string, name: string) => Promise<void>
   onList: () => Promise<Workspace[]>
   onClose: () => void
 }
@@ -75,7 +76,7 @@ function BoardThumbnail({ workspace, size = 120 }: { workspace: Workspace; size?
 }
 
 export function ProjectManager({
-  currentId, onSwitch, onCreate, onDelete, onRename, onList, onClose,
+  currentId, onSwitch, onCreate, onDelete, onDuplicate, onRename, onList, onClose,
 }: ProjectManagerProps) {
   const [projects, setProjects] = useState<Workspace[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -106,15 +107,18 @@ export function ProjectManager({
     await refresh()
   }
 
+  const handleDuplicate = async (id: string) => {
+    await onDuplicate(id)
+    await refresh()
+  }
+
   const startRename = (ws: Workspace) => {
     setEditingId(ws.id)
     setEditName(ws.name)
   }
 
   const commitRename = (id: string) => {
-    if (id === currentId) {
-      onRename(editName)
-    }
+    onRename(id, editName)
     setProjects(prev => prev.map(p => p.id === id ? { ...p, name: editName } : p))
     setEditingId(null)
   }
@@ -214,11 +218,15 @@ export function ProjectManager({
                   </div>
                   <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}
                     onClick={e => e.stopPropagation()}>
-                    <button onClick={() => startRename(ws)}
+                    <button onClick={() => startRename(ws)} title="名前を変更"
                       className="btn-ghost" style={{ padding: 5, border: 'none' }}>
                       <Pencil size={13} />
                     </button>
-                    <button onClick={() => handleDelete(ws.id)}
+                    <button onClick={() => handleDuplicate(ws.id)} title="複製"
+                      className="btn-ghost" style={{ padding: 5, border: 'none' }}>
+                      <Copy size={13} />
+                    </button>
+                    <button onClick={() => handleDelete(ws.id)} title="削除"
                       className="btn-ghost" style={{ padding: 5, border: 'none', color: 'var(--accent)' }}>
                       <Trash2 size={13} />
                     </button>

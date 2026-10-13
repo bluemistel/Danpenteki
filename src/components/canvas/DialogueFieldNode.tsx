@@ -95,6 +95,7 @@ function DialogueFieldNodeComponent({ data, selected }: NodeProps) {
         minWidth={260}
         maxWidth={800}
         position="right"
+        resizeDirection="horizontal"
         className="resize-control-right"
         style={{ background: 'transparent', border: 'none' }}
         onResizeEnd={(_event: any, params: any) => {
